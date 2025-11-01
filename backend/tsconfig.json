@@ -1,0 +1,23 @@
+// backend/tsconfig.json
+{
+  "extends": "@tsconfig/node16/tsconfig.json", // Ou a versão do Node que você usa
+  "compilerOptions": {
+    "module": "CommonJS", // Mantém CommonJS para compatibilidade Node padrão
+    "outDir": "./dist", // Diretório de saída para os arquivos compilados
+    "rootDir": "./src", // Diretório raiz dos seus fontes .ts
+    "baseUrl": "./src", // Base para resolver caminhos não relativos (opcional, mas ajuda)
+    "paths": {
+      // Mapeamento de caminhos (opcional, se usar alias)
+      "@/*": ["*"]
+    },
+    "esModuleInterop": true, // Permite importações de módulos CommonJS
+    "skipLibCheck": true, // Pula a verificação de tipos em arquivos .d.ts de bibliotecas
+    "forceConsistentCasingInFileNames": true, // Garante consistência nos nomes de arquivos
+    "strict": true, // Habilita verificações estritas (recomendado)
+    "sourceMap": true // Gera source maps para depuração
+    // "moduleResolution": "node", // Já incluído por @tsconfig/node16
+    // "resolveJsonModule": true // Se você importar arquivos .json diretamente
+  },
+  "include": ["src/**/*"], // Inclui todos os arquivos dentro da pasta src
+  "exclude": ["node_modules", "dist"] // Exclui pastas
+}

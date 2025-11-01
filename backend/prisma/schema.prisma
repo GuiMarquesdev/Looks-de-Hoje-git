@@ -1,0 +1,83 @@
+datasource db {
+    provider = "mysql"
+    url = env("DATABASE_URL")
+}
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+model Category {
+  id            String    @id @default(cuid()) @map("id")
+  name          String    @unique
+  slug          String    @unique
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now()) @map("created_at")
+  updated_at    DateTime  @updatedAt @map("updated_at")
+
+  pieces        Piece[]
+
+  @@map("categories")
+}
+
+model Piece {
+  id               String    @id @default(cuid()) @map("id")
+  name             String
+  category_id      String    @map("category_id")
+  status           String    @default("available") 
+  image_url        String?   @map("image_url")
+  images           Json?     
+  image_position_x Float?    @default(50) @map("image_position_x")
+  image_position_y Float?    @default(50) @map("image_position_y")
+  image_zoom       Float?    @default(100) @map("image_zoom")
+  description      String?
+  measurements     Json?
+  price            Float     @map("price") 
+  created_at       DateTime  @default(now()) @map("created_at")
+  updated_at       DateTime  @updatedAt @map("updated_at")
+
+  category         Category  @relation(fields: [category_id], references: [id], onDelete: Cascade)
+
+  @@map("pieces")
+}
+
+model StoreSetting {
+  id              String   @id @map("id") @db.VarChar(50) // CORRIGIDO: Removido default fixo de admin_config
+  store_name      String   @db.VarChar(255) // Agora só guarda informações da loja
+  instagram_url   String?  @db.VarChar(255)
+  whatsapp_url    String?  @db.VarChar(255)
+  email           String?  @db.VarChar(255)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@map("store_settings")
+}
+
+model User {
+  id    Int     @id @default(autoincrement())
+  email String  @unique
+}
+
+model AdminCredentials {
+  id              String   @id @default(dbgenerated("'admin_credentials'")) @db.VarChar(50)
+  admin_password  String   @db.VarChar(255) // Apenas o hash da senha
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@map("admin_credentials")
+}
+
+model HeroSetting {
+  id                     String   @id @map("id")
+  slides                 Json? 
+  title                  String?  @db.VarChar(255)
+  subtitle               String?  @db.VarChar(255)
+  cta_text               String?  @db.VarChar(100)
+  cta_link               String?  @db.VarChar(255)
+  background_image_url   String?  @db.VarChar(255)
+  created_at             DateTime @default(now()) @map("created_at")
+  updated_at             DateTime @updatedAt @map("updated_at")
+  is_active              Boolean @default(true) 
+  interval_ms            Int     @default(5000) 
+  @@map("hero_settings")
+}

@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* LooksdeHoje Design System - Luxury Fashion Rental
+Colors: Branco (#FFFFFF), Dourado (#FFD700), Preto (#000000)
+Typography: Playfair Display (elegant titles) + Montserrat (modern text)
+*/
+
+@layer base {
+  :root {
+    /* Core Brand Colors */
+    --background: 0 0% 100%; /* Pure White */
+    --foreground: 0 0% 0%; /* Pure Black */
+
+    /* Gold Palette */
+    --primary: 51 100% 50%; /* Pure Gold #FFD700 */
+    --primary-foreground: 0 0% 0%; /* Black text on gold */
+    --primary-glow: 51 100% 70%; /* Lighter gold for effects */
+    --primary-dark: 45 100% 35%; /* Darker gold for depth */
+
+    /* Card & Surface Colors */
+    --card: 0 0% 100%; /* White cards */
+    --card-foreground: 0 0% 0%; /* Black text */
+    
+    /* Elegant Secondary Colors */
+    --secondary: 0 0% 96%; /* Subtle off-white */
+    --secondary-foreground: 0 0% 15%; /* Dark gray */
+    
+    /* Interactive Elements */
+    --muted: 0 0% 94%; /* Light gray backgrounds */
+    --muted-foreground: 0 0% 35%; /* Medium gray text */
+    
+    --accent: 51 100% 50%; /* Gold accent */
+    --accent-foreground: 0 0% 0%; /* Black on gold */
+
+    /* Status & Feedback */
+    --destructive: 0 65% 50%; /* Red for errors */
+    --destructive-foreground: 0 0% 100%; /* White text */
+
+    /* Borders & Inputs */
+    --border: 0 0% 88%; /* Light border */
+    --input: 0 0% 96%; /* Input background */
+    --ring: 51 100% 50%; /* Gold focus ring */
+
+    /* Popover & Dropdown */
+    --popover: 0 0% 100%; /* White background for dropdowns */
+    --popover-foreground: 0 0% 0%; /* Black text on dropdowns */
+
+    /* Luxury Gradients */
+    --gradient-gold-primary: linear-gradient(135deg, hsl(51 100% 50%), hsl(45 100% 60%));
+    --gradient-gold-subtle: linear-gradient(180deg, hsl(51 100% 50% / 0.1), hsl(51 100% 50% / 0.05));
+    --gradient-hero: linear-gradient(135deg, hsl(0 0% 0% / 0.7), hsl(0 0% 0% / 0.4));
+
+    /* Premium Shadows */
+    --shadow-luxury: 0 8px 32px hsl(0 0% 0% / 0.12);
+    --shadow-gold: 0 4px 20px hsl(51 100% 50% / 0.25);
+    --shadow-elegant: 0 2px 12px hsl(0 0% 0% / 0.08);
+
+    /* Smooth Transitions */
+    --transition-elegant: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-smooth: all 0.2s ease-out;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  /* Premium Typography Classes */
+  .font-playfair {
+    font-family: 'Playfair Display', serif;
+  }
+  
+  .font-montserrat {
+    font-family: 'Montserrat', sans-serif;
+  }
+
+  /* Luxury Component Styles */
+  .luxury-card {
+    @apply bg-card rounded-lg shadow-luxury border border-border/20 transition-all duration-300 hover:shadow-gold;
+  }
+
+  .gold-gradient {
+    background: var(--gradient-gold-primary);
+  }
+
+  .hero-overlay {
+    background: var(--gradient-hero);
+  }
+
+  .elegant-shadow {
+    box-shadow: var(--shadow-elegant);
+  }
+
+  /* Premium Animations */
+  .hover-lift {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-luxury;
+  }
+
+  .fade-in-up {
+    @apply animate-fade-in;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
