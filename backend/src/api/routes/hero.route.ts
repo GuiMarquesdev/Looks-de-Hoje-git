@@ -3,27 +3,42 @@
 import { Router, Request, Response } from "express";
 import { IRepositoryFactory } from "../../factories/IRepositoryFactory";
 import { HeroService } from "../../services/HeroService";
-import { HeroUpdatePayload } from "../../interfaces/IHeroSettingRepository"; // Usar o tipo correto
+import { HeroUpdatePayload } from "../../interfaces/IHeroSettingRepository";
 
 export const createHeroRouter = (repositoryFactory: IRepositoryFactory) => {
   const router = Router();
   const heroSettingRepository = repositoryFactory.createHeroSettingRepository();
-  const heroService = new HeroService(heroSettingRepository); // Assumindo injeção correta
+  const heroService = new HeroService(heroSettingRepository);
 
-  // 🚨 1. Lida com a URL vazia ("/") que o app.use envia
-  router.get("/", async (_req: Request, res: Response) => {
+  // Objeto de retorno padrão para quando as configurações não existirem no DB
+  const DEFAULT_HERO_SETTINGS = {
+    settings: {
+      id: "hero", // ID padrão para o upsert
+      is_active: true,
+      interval_ms: 5000,
+      background_image_url: "",
+      title: "",
+      subtitle: "",
+      cta_text: "",
+      cta_link: "",
+    },
+    slides: [],
+  };
+
+  // Lógica unificada para GET /api/hero
+  const handleGetHeroSettings = async (req: Request, res: Response) => {
     try {
-      // Usando o serviço que criamos
+      // O HeroService buscará as configurações e slides
       const { settings, slides } = await heroService.getSettingsAndSlides();
 
+      // **CORREÇÃO:** Se 'settings' for null ou undefined (primeiro acesso),
+      // retorna o objeto padrão com status 200 OK, permitindo que o Admin
+      // carregue e prepare a criação do registro via PUT (upsert).
       if (!settings) {
-        // Se o dado não existe, retornamos um 404 propositalmente, o que o Frontend está vendo
-        return res.status(404).json({
-          message: "Configurações do Hero não inicializadas na base de dados.",
-        });
+        return res.json(DEFAULT_HERO_SETTINGS);
       }
 
-      // Retorna a combinação de configurações e slides
+      // Retorna a combinação de configurações e slides encontrados
       return res.json({ settings, slides });
     } catch (error: any) {
       console.error("Error fetching hero settings:", error);
@@ -32,32 +47,13 @@ export const createHeroRouter = (repositoryFactory: IRepositoryFactory) => {
         .status(500)
         .json({ message: "Erro interno ao buscar configurações do Hero." });
     }
-  });
+  };
 
-  // 🚨 CORREÇÃO: Use router.route("/") para garantir o registro do PUT
   router
     .route("/")
-    .get(async (req: Request, res: Response) => {
-      // Código da rota GET /api/hero (mantido)
-      try {
-        const { settings, slides } = await heroService.getSettingsAndSlides();
-
-        if (!settings) {
-          return res.status(404).json({
-            message:
-              "Configurações do Hero não inicializadas na base de dados.",
-          });
-        }
-
-        return res.json({ settings, slides });
-      } catch (error: any) {
-        console.error("Error fetching hero settings:", error);
-        return res
-          .status(500)
-          .json({ message: "Erro interno ao buscar configurações do Hero." });
-      }
-    })
+    .get(handleGetHeroSettings) // Aplica a correção no GET
     .put(async (req: Request, res: Response) => {
+      // ... O código PUT/upsert deve permanecer o mesmo ...
       try {
         const updatePayload: HeroUpdatePayload = req.body;
 

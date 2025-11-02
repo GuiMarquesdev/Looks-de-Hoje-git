@@ -118,9 +118,10 @@ export const createPiecesRoutes = (repositoryFactory: IRepositoryFactory) => {
         price: incomingData.price ? Number(incomingData.price) : 100,
         is_available: isAvailable,
         category_id: incomingData.category_id,
+        // CORREÇÃO APLICADA: Adicionar filtro para remover undefined/null/"" antes de enviar ao Prisma
         image_urls: (incomingData.images || [])
           .map((img: any) => img.url)
-          .filter((url: string) => url && typeof url === "string"),
+          .filter(Boolean) as string[], // Esta linha remove os valores falsy, como 'undefined'
         description: incomingData.description,
         title: "",
       };
@@ -161,7 +162,10 @@ export const createPiecesRoutes = (repositoryFactory: IRepositoryFactory) => {
           ? incomingData.status === "available"
           : undefined,
         category_id: incomingData.category_id,
-        image_urls: (incomingData.images || []).map((img: any) => img.url),
+        // CORREÇÃO APLICADA: Adicionar filtro para remover undefined/null/"" antes de enviar ao Prisma
+        image_urls: (incomingData.images || [])
+          .map((img: any) => img.url)
+          .filter(Boolean) as string[], // .filter(Boolean) remove todos os valores falsy (incluindo undefined)
         description: incomingData.description,
       };
 

@@ -8,6 +8,7 @@ import { createAdminRoutes } from "./routes/admin.route";
 import { createPiecesRoutes } from "./routes/pieces.route";
 import { createHeroRouter } from "./routes/hero.route";
 import { createCategoryRoutes } from "./routes/categories.route";
+import path from "path"; // IMPORT NECESSÁRIO
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +18,13 @@ const repositoryFactory = new PrismaRepositoryFactory(prisma);
 
 app.use(cors());
 app.use(express.json());
+
+// SERVE A PASTA UPLOADS E A TORNA ACESSÍVEL VIA URL /uploads
+// O caminho resolve para a pasta `backend/uploads` na raiz do projeto.
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "../../..", "uploads"))
+);
 
 const adminRouter = createAdminRoutes(repositoryFactory);
 const piecesRouter = createPiecesRoutes(repositoryFactory);
@@ -35,9 +43,9 @@ app.get("/api", (req, res) => {
 app.use(
   (
     err: Error,
-    req: express.Request,
+    _req: express.Request,
     res: express.Response,
-    next: express.NextFunction
+    _next: express.NextFunction
   ) => {
     console.error(err.stack);
     res.status(500).json({ message: "Algo deu errado no servidor!" });

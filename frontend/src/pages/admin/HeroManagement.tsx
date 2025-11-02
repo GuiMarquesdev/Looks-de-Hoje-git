@@ -53,7 +53,20 @@ interface HeroSlide {
   image_position_y?: number;
   image_zoom?: number;
 }
-// ... (HeroSetting e HeroData mantidas)
+interface HeroSetting {
+  id: string;
+  is_active: boolean;
+  interval_ms: number;
+  background_image_url?: string;
+  title?: string;
+  subtitle?: string;
+  cta_text?: string;
+  cta_link?: string;
+}
+interface HeroData {
+  settings: HeroSetting;
+  slides: HeroSlide[];
+}
 
 // SCHEMA ZOD EXPANDIDO PARA NOVOS CAMPOS (mantido)
 const slideContentSchema = z.object({
@@ -83,7 +96,7 @@ const HeroManagement = () => {
   // Estados Locais para Configurações Gerais
   const [is_active, setIsActive] = useState(false);
   const [interval_ms, setIntervalMs] = useState(5000);
-  const [background_image_url, setBackgroundImageUrl] = useState("");
+  // REMOVIDO: const [background_image_url, setBackgroundImageUrl] = useState("");
 
   // Estado para gerenciar as imagens (ProductImage agora inclui os campos de texto)
   const [productImages, setProductImages] = useState<ProductImage[]>([]);
@@ -135,7 +148,7 @@ const HeroManagement = () => {
       // ATUALIZAÇÃO DOS ESTADOS LOCAIS GERAIS
       setIsActive(data.settings.is_active);
       setIntervalMs(data.settings.interval_ms);
-      setBackgroundImageUrl(data.settings.background_image_url || "");
+      // setBackgroundImageUrl(data.settings.background_image_url || ""); // REMOVIDO
 
       // Inicializa o estado de imagens com os slides do backend (incluindo os campos de texto)
       setProductImages(
@@ -162,7 +175,14 @@ const HeroManagement = () => {
       const errorMessage = (err as Error).message;
       console.error("Error fetching hero settings:", errorMessage);
       setError(errorMessage);
-      toast.error(`Erro ao carregar configurações do Hero: ${errorMessage}`);
+      // Permite que o usuário crie o registro se for a primeira vez.
+      if (errorMessage.includes("Configurações do Hero não inicializadas")) {
+        toast.info(
+          "Configurações iniciais não encontradas. Por favor, configure e salve."
+        );
+      } else {
+        toast.error(`Erro ao carregar configurações do Hero: ${errorMessage}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -184,7 +204,7 @@ const HeroManagement = () => {
       const payload = {
         is_active: is_active,
         interval_ms: interval_ms,
-        background_image_url: background_image_url,
+        // background_image_url: background_image_url, // REMOVIDO
         slides: productImages.map((img) => ({
           // 🚨 USANDO image_url CONSISTENTEMENTE
           image_url: img.image_url,
@@ -302,6 +322,10 @@ const HeroManagement = () => {
     editingSlideIndex !== null ? productImages[editingSlideIndex] : null;
 
   if (loading || !heroData || !heroData.settings) {
+    // 🚨 NOTA: O Fallback no Backend deve garantir que o settings não seja null no
+    // primeiro carregamento (retorna o DEFAULT_HERO_SETTINGS).
+    // Caso contrário, esta tela não carregará.
+    // Se ainda vir este loading, confira a correção do backend!
     return (
       <div className="p-6 text-center space-y-4">
         <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
@@ -387,15 +411,16 @@ const HeroManagement = () => {
               </p>
             </div>
 
-            {/* Campo de URL de Imagem de Fundo Geral (Fallback) */}
-            <h3 className="font-playfair text-lg font-semibold mt-6">
+            {/* Ocultando o campo de Fundo Padrão (Fallback) conforme solicitado */}
+            {/* <h3 className="font-playfair text-lg font-semibold mt-6">
               Fundo Padrão (Fallback)
             </h3>
             <Input
               placeholder="URL da Imagem de Fundo Geral (Fallback)"
               value={background_image_url}
               onChange={(e) => setBackgroundImageUrl(e.target.value)}
-            />
+            /> 
+            */}
 
             {/* Instrução de salvamento */}
             <div className="flex justify-end mt-4 pt-4 border-t">
