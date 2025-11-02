@@ -55,17 +55,19 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-// REMOVER: import { supabase } from "@/integrations/supabase/client";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { MultipleImageUpload } from "@/components/admin/MultipleImageUpload.tsx";
+import {
+  MultipleImageUpload,
+  ProductImage,
+} from "@/components/admin/MultipleImageUpload";
 import { ImageFramingTool } from "@/components/admin/ImageFramingTool";
 
 const API_URL = "http://localhost:3000/api";
 const PIECES_URL = `${API_URL}/pieces`;
 const CATEGORIES_URL = `${API_URL}/categories`;
-const UPLOAD_URL = `${API_URL}/pieces/upload-images`; // Rota mockada no backend
+const UPLOAD_URL = `${API_URL}/pieces/upload-images`;
 
 interface Piece {
   id: string;
@@ -124,9 +126,7 @@ const PiecesManagement = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPiece, setEditingPiece] = useState<Piece | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [productImages, setProductImages] = useState<
-    Array<{ url: string; order: number; file?: File; isNew?: boolean }>
-  >([]);
+  const [productImages, setProductImages] = useState<ProductImage[]>([]);
   const [imagePositionX, setImagePositionX] = useState(50);
   const [imagePositionY, setImagePositionY] = useState(50);
   const [imageZoom, setImageZoom] = useState(100);
@@ -178,18 +178,14 @@ const PiecesManagement = () => {
     }
   };
 
-  /**
-   * FUNÇÃO CRÍTICA: SIMULANDO UPLOAD PARA UM SERVIÇO S3/EXPRESS
-   */
   const uploadNewImages = async (
-    images: Array<{ url: string; order: number; file?: File; isNew?: boolean }>
+    images: ProductImage[]
   ): Promise<Array<{ url: string; order: number }>> => {
     const filesToUpload = images
       .filter((img) => img.isNew && img.file)
       .map((img) => img.file) as File[];
 
     if (filesToUpload.length === 0) {
-      // Retorna um array vazio se não houver novos arquivos para upload
       return [];
     }
 
@@ -199,6 +195,8 @@ const PiecesManagement = () => {
     });
 
     try {
+      console.log("📤 Enviando", filesToUpload.length, "arquivo(s)...");
+
       const uploadResponse = await fetch(UPLOAD_URL, {
         method: "POST",
         body: formData,
@@ -209,18 +207,17 @@ const PiecesManagement = () => {
         throw new Error(errorData.message || "Falha no upload de imagens.");
       }
 
-      const { urls } = await uploadResponse.json(); // Espera { urls: ["url1", "url2", ...] }
+      const { urls } = await uploadResponse.json();
+      console.log("✅ Upload concluído. URLs:", urls);
 
-      // Mapeia as novas URLs para o formato PieceImage, mantendo a ordem original
       const newUploadedImages = urls.map((url: string, index: number) => ({
         url,
-        // Isso é complexo; o backend DEVERIA retornar a ordem, mas aqui estamos forçando.
         order: images.filter((img) => !img.isNew).length + index,
       }));
 
       return newUploadedImages;
     } catch (error) {
-      console.error("Error uploading images:", error);
+      console.error("❌ Erro no upload:", error);
       toast.error("Erro ao fazer upload de uma ou mais imagens");
       throw error;
     }
@@ -229,14 +226,27 @@ const PiecesManagement = () => {
   const onSubmit = async (values: z.infer<typeof pieceSchema>) => {
     try {
       setUploading(true);
+      console.log("🔄 Iniciando salvamento de peça...");
+      console.log("📋 Valores do formulário:", values);
+      console.log("🖼️ Imagens selecionadas:", productImages);
 
       const existingImages = productImages.filter((img) => !img.isNew);
-      const uploadedNewImages = await uploadNewImages(productImages);
+      console.log("📦 Imagens existentes:", existingImages.length);
 
-      // Combina e reordena todas as imagens para salvar no banco
+      const newImages = productImages.filter((img) => img.isNew);
+      console.log("🆕 Imagens novas para upload:", newImages.length);
+
+      const uploadedNewImages = await uploadNewImages(productImages);
+      console.log("✅ Imagens enviadas:", uploadedNewImages);
+
       const finalImages = [...existingImages, ...uploadedNewImages]
-        .map((img, i) => ({ url: img.url, order: i }))
+        .map((img, i) => ({
+          url: "url" in img ? img.url : img.image_url,
+          order: i,
+        }))
         .sort((a, b) => a.order - b.order);
+
+      console.log("🎯 Imagens finais:", finalImages);
 
       const pieceData = {
         name: values.name,
@@ -257,15 +267,19 @@ const PiecesManagement = () => {
             : null,
       };
 
+      console.log("📦 Dados da peça a ser salva:", pieceData);
+
       let response: Response;
 
       if (editingPiece) {
+        console.log("✏️ Atualizando peça existente:", editingPiece.id);
         response = await fetch(`${PIECES_URL}/${editingPiece.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(pieceData),
         });
       } else {
+        console.log("➕ Criando nova peça");
         response = await fetch(PIECES_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -275,10 +289,14 @@ const PiecesManagement = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error("❌ Erro na resposta:", errorData);
         throw new Error(
           errorData.message || "Erro desconhecido ao salvar peça"
         );
       }
+
+      const savedPiece = await response.json();
+      console.log("✅ Peça salva com sucesso:", savedPiece);
 
       toast.success(
         `Peça ${editingPiece ? "atualizada" : "adicionada"} com sucesso!`
@@ -293,7 +311,7 @@ const PiecesManagement = () => {
       form.reset();
       fetchPieces();
     } catch (error) {
-      console.error("Error saving piece:", error);
+      console.error("❌ Erro ao salvar peça:", error);
       toast.error(
         "Erro ao salvar peça: " +
           (error instanceof Error ? error.message : "Verifique o console.")
@@ -348,12 +366,15 @@ const PiecesManagement = () => {
   const openEditDialog = (piece: Piece) => {
     setEditingPiece(piece);
 
-    // Load existing images
-    const existingImages =
+    const existingImages: ProductImage[] =
       piece.images && (piece.images as Array<any>).length > 0
-        ? (piece.images as Array<any>).map((img) => ({ ...img, isNew: false }))
+        ? (piece.images as Array<any>).map((img) => ({
+            image_url: img.url,
+            order: img.order,
+            isNew: false,
+          }))
         : piece.image_url
-        ? [{ url: piece.image_url, order: 0, isNew: false }]
+        ? [{ image_url: piece.image_url, order: 0, isNew: false }]
         : [];
 
     setProductImages(existingImages);
@@ -366,7 +387,6 @@ const PiecesManagement = () => {
       category_id: piece.category_id,
       status: piece.status,
       description: piece.description || "",
-      // Mapeia measures para um objeto simples, garantindo que o formulário entenda
       measurements: piece.measurements || {
         busto: "",
         cintura: "",
@@ -540,7 +560,7 @@ const PiecesManagement = () => {
                     </FormItem>
                   )}
                 />
-                {/* Multiple Images Upload */}
+
                 <div className="space-y-4">
                   <MultipleImageUpload
                     images={productImages}
@@ -549,11 +569,10 @@ const PiecesManagement = () => {
                   />
                 </div>
 
-                {/* Image Framing Tool - Only show if there's at least one image */}
-                {productImages.length > 0 && productImages[0].url && (
+                {productImages.length > 0 && productImages[0].image_url && (
                   <div className="space-y-2">
                     <ImageFramingTool
-                      imageUrl={productImages[0].url}
+                      imageUrl={productImages[0].image_url}
                       positionX={imagePositionX}
                       positionY={imagePositionY}
                       zoom={imageZoom}
@@ -567,6 +586,7 @@ const PiecesManagement = () => {
                     />
                   </div>
                 )}
+
                 <FormField
                   control={form.control}
                   name="description"
@@ -586,6 +606,7 @@ const PiecesManagement = () => {
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={form.control}
                   name="measurements"
@@ -659,6 +680,7 @@ const PiecesManagement = () => {
                     </FormItem>
                   )}
                 />
+
                 <div className="flex justify-end gap-3">
                   <Button
                     type="button"
@@ -713,7 +735,6 @@ const PiecesManagement = () => {
                 <TableRow key={piece.id}>
                   <TableCell>
                     {(() => {
-                      // Priority: images array first, then fallback to image_url
                       const firstImage =
                         piece.images && (piece.images as Array<any>).length > 0
                           ? (piece.images as Array<any>).sort(
