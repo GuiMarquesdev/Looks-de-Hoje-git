@@ -1,3 +1,5 @@
+// backend/src/repositories/PrismaHeroSettingRepository.ts
+
 import { PrismaClient, HeroSetting } from "@prisma/client";
 import {
   IHeroSettingRepository,
@@ -43,7 +45,9 @@ export class PrismaHeroSettingRepository implements IHeroSettingRepository {
   }
 
   async updateHeroData(data: HeroUpdatePayload): Promise<HeroSetting> {
+    // CORREÇÃO: Incluindo as novas propriedades de enquadramento no mapeamento
     const slidesDataJson = data.slides.map((slide: HeroSlideData) => ({
+      id: slide.id, // Incluindo o ID para estabilidade (boa prática)
       image_url: slide.image_url,
       order: slide.order,
 
@@ -51,6 +55,11 @@ export class PrismaHeroSettingRepository implements IHeroSettingRepository {
       subtitle: slide.subtitle,
       cta_text: slide.cta_text,
       cta_link: slide.cta_link,
+      // Novas propriedades
+      image_fit: slide.image_fit,
+      image_position_x: slide.image_position_x,
+      image_position_y: slide.image_position_y,
+      image_zoom: slide.image_zoom,
     }));
 
     // 2. Usa UPSERT para atualizar ou criar

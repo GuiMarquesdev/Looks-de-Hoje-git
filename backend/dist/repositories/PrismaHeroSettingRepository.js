@@ -1,4 +1,5 @@
 "use strict";
+// backend/src/repositories/PrismaHeroSettingRepository.ts
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PrismaHeroSettingRepository = void 0;
 const HERO_SETTINGS_ID = "hero";
@@ -32,13 +33,20 @@ class PrismaHeroSettingRepository {
         });
     }
     async updateHeroData(data) {
+        // CORREÇÃO: Incluindo as novas propriedades de enquadramento no mapeamento
         const slidesDataJson = data.slides.map((slide) => ({
+            id: slide.id, // Incluindo o ID para estabilidade (boa prática)
             image_url: slide.image_url,
             order: slide.order,
             title: slide.title,
             subtitle: slide.subtitle,
             cta_text: slide.cta_text,
             cta_link: slide.cta_link,
+            // Novas propriedades
+            image_fit: slide.image_fit,
+            image_position_x: slide.image_position_x,
+            image_position_y: slide.image_position_y,
+            image_zoom: slide.image_zoom,
         }));
         // 2. Usa UPSERT para atualizar ou criar
         return this.prisma.heroSetting.upsert({

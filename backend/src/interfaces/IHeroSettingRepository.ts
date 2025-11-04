@@ -11,11 +11,17 @@ interface HeroSlideData {
   subtitle?: string;
   cta_text?: string;
   cta_link?: string;
+
+  // CORREÇÃO: Adicionando as propriedades de enquadramento
+  image_fit?: "cover" | "contain" | "fill";
+  image_position_x?: number;
+  image_position_y?: number;
+  image_zoom?: number;
 }
 
 // Definição do Payload completo que a rota envia
 export interface HeroUpdatePayload extends Partial<HeroSettingsDTO> {
-  slides: HeroSlideData[];
+  slides: HeroSlideData[];  
 }
 
 export interface IHeroSettingRepository {

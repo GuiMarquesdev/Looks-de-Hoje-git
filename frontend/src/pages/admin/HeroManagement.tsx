@@ -43,8 +43,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
-// API URL - configure conforme seu backend
-const API_URL = "http://localhost:3001/api";
+// CORRIGIDO: Alterado para a porta 3000, que é a porta real do backend
+const API_URL = "http://localhost:3000/api";
 
 // Interfaces baseadas no modelo Prisma
 interface HeroSlide {
@@ -85,7 +85,8 @@ const slideSchema = z.object({
   image_fit: z.enum(["cover", "contain", "fill"]).optional(),
 });
 
-export const HeroSectionManager = () => {
+// CORRIGIDO: Alterado para 'const HeroManagement'
+const HeroManagement = () => {
   const [heroData, setHeroData] = useState<HeroData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedSlide, setSelectedSlide] = useState<HeroSlide | null>(null);
@@ -126,7 +127,18 @@ export const HeroSectionManager = () => {
       const response = await fetch(`${API_URL}/hero`);
       if (!response.ok) throw new Error("Falha ao carregar dados");
       const data: HeroData = await response.json();
-      setHeroData(data);
+
+      // CORREÇÃO: Garante que todos os slides tenham um ID de string.
+      // Isso resolve o problema de exclusão de slides criados sem ID.
+      const processedSlides = data.slides.map((slide, index) => {
+        if (!slide.id) {
+          // Atribui um ID temporário e estável para deleção
+          return { ...slide, id: `temp-${index}` };
+        }
+        return slide;
+      });
+
+      setHeroData({ ...data, slides: processedSlides });
     } catch (error) {
       toast.error("Erro ao carregar hero section");
       console.error(error);
@@ -135,10 +147,27 @@ export const HeroSectionManager = () => {
     }
   };
 
+  // Função para lidar com o upload e o erro blob
   const handleImageUpload = async (file: File) => {
     if (!selectedSlide) return;
 
+    // 1. CRIAÇÃO DO BLOB URL PARA PRÉ-VISUALIZAÇÃO IMEDIATA
+    const tempImageUrl = URL.createObjectURL(file);
+    const temporarySlide = { ...selectedSlide, image_url: tempImageUrl };
+
+    // Atualiza o slide selecionado e o heroData com a URL temporária
+    setSelectedSlide(temporarySlide);
+    if (heroData) {
+      setHeroData({
+        ...heroData,
+        slides: heroData.slides.map((s) =>
+          s.id === selectedSlide.id ? temporarySlide : s
+        ),
+      });
+    }
+
     setUploading(true);
+
     try {
       const formData = new FormData();
       formData.append("image", file);
@@ -151,15 +180,20 @@ export const HeroSectionManager = () => {
       if (!response.ok) throw new Error("Falha no upload");
 
       const data = await response.json();
+      const serverResponseUrl = data.url;
 
-      const updatedSlide = { ...selectedSlide, image_url: data.url };
-      setSelectedSlide(updatedSlide);
+      // Atualiza o estado com a URL PERMANENTE do servidor
+      const finalUpdatedSlide = {
+        ...selectedSlide,
+        image_url: serverResponseUrl,
+      };
+      setSelectedSlide(finalUpdatedSlide);
 
       if (heroData) {
         setHeroData({
           ...heroData,
           slides: heroData.slides.map((s) =>
-            s.id === selectedSlide.id ? updatedSlide : s
+            s.id === selectedSlide.id ? finalUpdatedSlide : s
           ),
         });
       }
@@ -168,8 +202,13 @@ export const HeroSectionManager = () => {
     } catch (error) {
       toast.error("Erro ao enviar imagem");
       console.error(error);
+
+      // Se houver falha, recarrega os dados do servidor para reverter a pré-visualização
+      await fetchHeroData();
     } finally {
       setUploading(false);
+      // ESSENCIAL: Revoga o Blob URL na seção 'finally'.
+      URL.revokeObjectURL(tempImageUrl);
     }
   };
 
@@ -251,22 +290,55 @@ export const HeroSectionManager = () => {
   };
 
   const removeSlide = async (id: string) => {
+    if (!heroData) return;
+
     try {
-      const response = await fetch(`${API_URL}/hero/slides/${id}`, {
-        method: "DELETE",
+      // 1. Filtra localmente o slide a ser removido (usando o ID temporário ou permanente)
+      const currentSlides = heroData.slides || [];
+      // Filtra o slide com o ID correspondente
+      const remainingSlides = currentSlides.filter((slide) => slide.id !== id);
+
+      // 2. Reordena e limpa IDs temporários antes de enviar ao servidor
+      const reorderedSlides = remainingSlides.map((slide, index) => {
+        // Verifica se é um ID temporário (iniciado com 'temp-')
+        const isTempId = slide.id && String(slide.id).startsWith("temp-");
+
+        // Retorna o slide com a ordem atualizada e o ID limpo se for temporário
+        return {
+          ...slide,
+          // Limpa o ID temporário (deixa como undefined) para que o backend não o utilize
+          id: isTempId ? undefined : slide.id,
+          order: index + 1,
+        };
       });
 
-      if (!response.ok) throw new Error("Falha ao remover slide");
+      const updatePayload = {
+        ...heroData.settings,
+        slides: reorderedSlides,
+      };
 
+      // 3. Usa o PUT /api/hero para substituir toda a lista de slides no back-end (UPSERT)
+      const response = await fetch(`${API_URL}/hero`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatePayload),
+      });
+
+      if (!response.ok) throw new Error("Falha ao remover slide no servidor.");
+
+      // 4. Se o PUT for bem-sucedido, refetch (fetchHeroData) para atualizar o estado
       await fetchHeroData();
+
       if (selectedSlide?.id === id) {
         setSelectedSlide(null);
         setEditDialogOpen(false);
       }
-      toast.success("Slide removido");
+      toast.success("Slide removido com sucesso!");
     } catch (error) {
-      toast.error("Erro ao remover slide");
+      toast.error("Erro ao remover slide. Verifique o console.");
       console.error(error);
+      // Opcional: refetch para reverter o estado local em caso de falha de PUT
+      await fetchHeroData();
     }
   };
 
@@ -389,9 +461,9 @@ export const HeroSectionManager = () => {
                 <div className="space-y-3">
                   {heroData.slides
                     .sort((a, b) => a.order - b.order)
-                    .map((slide) => (
+                    .map((slide, index) => (
                       <div
-                        key={slide.id}
+                        key={slide.id || index}
                         className={`
                           glass-card p-4 cursor-pointer transition-all animate-fade-in
                           ${
@@ -745,3 +817,6 @@ export const HeroSectionManager = () => {
     </div>
   );
 };
+
+// CORRIGIDO: Exportação padrão para resolver o erro de módulo no App.tsx
+export default HeroManagement;

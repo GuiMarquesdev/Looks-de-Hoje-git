@@ -54,11 +54,13 @@ export interface UpdateCategoryDTO {
 // DTO para a criação/atualização das configurações do Hero (banner)
 export interface HeroSettingsDTO {
   id: string;
-  title?: string;
-  subtitle?: string;
-  cta_text?: string;
-  cta_link?: string;
-  background_image_url: string;
+  // CORREÇÃO: Adicionando 'null' para compatibilidade com o retorno do Prisma
+  title?: string | null;
+  subtitle?: string | null;
+  cta_text?: string | null;
+  cta_link?: string | null;
+  // background_image_url também é nulo no banco se não definido.
+  background_image_url?: string | null;
   is_active: boolean;
-  interval_ms: number; // 🚨 CORREÇÃO: Adicionando o campo
+  interval_ms: number;
 }
