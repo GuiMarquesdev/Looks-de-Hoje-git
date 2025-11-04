@@ -1,17 +1,22 @@
-// src/pages/admin/HeroManagement.tsx
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { Loader2, Settings, Image, Edit, Plus, RotateCcw } from "lucide-react";
-import { API_URL } from "@/config/api";
-import {
-  MultipleImageUpload,
-  ProductImage,
-} from "@/components/admin/MultipleImageUpload"; // Agora ProductImage usa 'image_url'
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+import {
+  Loader2,
+  Settings,
+  Image,
+  Edit,
+  Plus,
+  RotateCcw,
+  Save,
+  X,
+  GripVertical,
+  Upload,
+} from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import {
   Dialog,
   DialogContent,
@@ -37,12 +42,14 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { ImageFramingTool } from "@/components/admin/ImageFramingTool";
+
+// API URL - configure conforme seu backend
+const API_URL = "http://localhost:3001/api";
 
 // Interfaces baseadas no modelo Prisma
 interface HeroSlide {
   id?: string;
-  image_url: string; // Corrigido para image_url
+  image_url: string;
   order: number;
   title?: string;
   subtitle?: string;
@@ -53,6 +60,7 @@ interface HeroSlide {
   image_position_y?: number;
   image_zoom?: number;
 }
+
 interface HeroSetting {
   id: string;
   is_active: boolean;
@@ -63,462 +71,572 @@ interface HeroSetting {
   cta_text?: string;
   cta_link?: string;
 }
+
 interface HeroData {
   settings: HeroSetting;
   slides: HeroSlide[];
 }
 
-// SCHEMA ZOD EXPANDIDO PARA NOVOS CAMPOS (mantido)
-const slideContentSchema = z.object({
-  title: z.string().max(100, "Máximo de 100 caracteres").optional(),
-  subtitle: z.string().max(255, "Máximo de 255 caracteres").optional(),
-  cta_text: z.string().max(50, "Máximo de 50 caracteres").optional(),
-  cta_link: z
-    .string()
-    .url("Deve ser uma URL válida")
-    .optional()
-    .or(z.literal("")),
-
+const slideSchema = z.object({
+  title: z.string().optional(),
+  subtitle: z.string().optional(),
+  cta_text: z.string().optional(),
+  cta_link: z.string().url().optional().or(z.literal("")),
   image_fit: z.enum(["cover", "contain", "fill"]).optional(),
-  image_position_x: z.number().optional(),
-  image_position_y: z.number().optional(),
-  image_zoom: z.number().optional(),
 });
-type SlideContentFormValues = z.infer<typeof slideContentSchema>;
 
-const HeroManagement = () => {
-  // Declaração dos estados e variáveis
+export const HeroSectionManager = () => {
   const [heroData, setHeroData] = useState<HeroData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [selectedSlide, setSelectedSlide] = useState<HeroSlide | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
 
-  // Estados Locais para Configurações Gerais
-  const [is_active, setIsActive] = useState(false);
-  const [interval_ms, setIntervalMs] = useState(5000);
-  // REMOVIDO: const [background_image_url, setBackgroundImageUrl] = useState("");
-
-  // Estado para gerenciar as imagens (ProductImage agora inclui os campos de texto)
-  const [productImages, setProductImages] = useState<ProductImage[]>([]);
-
-  // Estado para edição de slide individual
-  const [editingSlideIndex, setEditingSlideIndex] = useState<number | null>(
-    null
-  );
-  const [isSlideEditorOpen, setIsSlideEditorOpen] = useState(false);
-
-  // Instância do useForm para o Editor de Slides
-  const slideForm = useForm<SlideContentFormValues>({
-    resolver: zodResolver(slideContentSchema),
+  const form = useForm<z.infer<typeof slideSchema>>({
+    resolver: zodResolver(slideSchema),
     defaultValues: {
       title: "",
       subtitle: "",
       cta_text: "",
       cta_link: "",
       image_fit: "cover",
-      image_position_x: 50,
-      image_position_y: 50,
-      image_zoom: 100,
     },
   });
 
-  // ------------------------------------------
-  // LÓGICA DE BUSCA DE DADOS (GET)
-  // ------------------------------------------
-  const fetchHeroSettings = async () => {
-    setLoading(true);
-    setError(null);
+  useEffect(() => {
+    fetchHeroData();
+  }, []);
+
+  useEffect(() => {
+    if (selectedSlide) {
+      form.reset({
+        title: selectedSlide.title || "",
+        subtitle: selectedSlide.subtitle || "",
+        cta_text: selectedSlide.cta_text || "",
+        cta_link: selectedSlide.cta_link || "",
+        image_fit: selectedSlide.image_fit || "cover",
+      });
+    }
+  }, [selectedSlide]);
+
+  const fetchHeroData = async () => {
     try {
       const response = await fetch(`${API_URL}/hero`);
-
-      if (!response.ok) {
-        let errorDetail = "Erro desconhecido ao carregar configurações.";
-        try {
-          const errorJson = await response.json();
-          errorDetail = errorJson.message || errorDetail;
-        } catch {
-          errorDetail = response.statusText || `Status: ${response.status}`;
-        }
-        throw new Error(errorDetail);
-      }
-
+      if (!response.ok) throw new Error("Falha ao carregar dados");
       const data: HeroData = await response.json();
       setHeroData(data);
-
-      // ATUALIZAÇÃO DOS ESTADOS LOCAIS GERAIS
-      setIsActive(data.settings.is_active);
-      setIntervalMs(data.settings.interval_ms);
-      // setBackgroundImageUrl(data.settings.background_image_url || ""); // REMOVIDO
-
-      // Inicializa o estado de imagens com os slides do backend (incluindo os campos de texto)
-      setProductImages(
-        data.slides.map((slide) => ({
-          // 🚨 NOVO NOME DE PROPRIEDADE: Mapeando image_url do backend para image_url do frontend
-          image_url: slide.image_url,
-          order: slide.order,
-          file: undefined,
-          isNew: false,
-          // CARREGA TODOS OS CAMPOS
-          title: slide.title,
-          subtitle: slide.subtitle,
-          cta_text: slide.cta_text,
-          cta_link: slide.cta_link,
-          image_fit: slide.image_fit || "cover",
-          image_position_x: slide.image_position_x ?? 50,
-          image_position_y: slide.image_position_y ?? 50,
-          image_zoom: slide.image_zoom ?? 100,
-        }))
-      );
-
-      toast.success("Configurações do Hero carregadas com sucesso.");
-    } catch (err) {
-      const errorMessage = (err as Error).message;
-      console.error("Error fetching hero settings:", errorMessage);
-      setError(errorMessage);
-      // Permite que o usuário crie o registro se for a primeira vez.
-      if (errorMessage.includes("Configurações do Hero não inicializadas")) {
-        toast.info(
-          "Configurações iniciais não encontradas. Por favor, configure e salve."
-        );
-      } else {
-        toast.error(`Erro ao carregar configurações do Hero: ${errorMessage}`);
-      }
+    } catch (error) {
+      toast.error("Erro ao carregar hero section");
+      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchHeroSettings();
-  }, []);
+  const handleImageUpload = async (file: File) => {
+    if (!selectedSlide) return;
 
-  // ------------------------------------------
-  // LÓGICA DE ATUALIZAÇÃO GERAL (PUT)
-  // ------------------------------------------
-  const handleSaveSettings = async () => {
-    if (!heroData) return;
-    setIsSaving(true);
-
+    setUploading(true);
     try {
-      // O payload agora inclui os campos gerais e os slides com conteúdo de texto
-      const payload = {
-        is_active: is_active,
-        interval_ms: interval_ms,
-        // background_image_url: background_image_url, // REMOVIDO
-        slides: productImages.map((img) => ({
-          // 🚨 USANDO image_url CONSISTENTEMENTE
-          image_url: img.image_url,
-          order: img.order,
-          id: img.id,
-          // SALVA OS NOVOS CAMPOS DO ESTADO DO PRODUCTIMAGES
-          title: img.title || "",
-          subtitle: img.subtitle || "",
-          cta_text: img.cta_text || "",
-          cta_link: img.cta_link || "",
-          image_fit: img.image_fit || "cover",
-          image_position_x: img.image_position_x ?? 50,
-          image_position_y: img.image_position_y ?? 50,
-          image_zoom: img.image_zoom ?? 100,
-        })),
-      };
+      const formData = new FormData();
+      formData.append("image", file);
 
-      const response = await fetch(`${API_URL}/hero`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const response = await fetch(`${API_URL}/hero/upload`, {
+        method: "POST",
+        body: formData,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Falha ao salvar no servidor.");
+      if (!response.ok) throw new Error("Falha no upload");
+
+      const data = await response.json();
+
+      const updatedSlide = { ...selectedSlide, image_url: data.url };
+      setSelectedSlide(updatedSlide);
+
+      if (heroData) {
+        setHeroData({
+          ...heroData,
+          slides: heroData.slides.map((s) =>
+            s.id === selectedSlide.id ? updatedSlide : s
+          ),
+        });
       }
 
-      toast.success("Configurações do Hero atualizadas com sucesso!");
-      setIsSlideEditorOpen(false);
-      fetchHeroSettings();
-    } catch (e) {
-      toast.error("Erro ao salvar configurações.");
-      console.error("Erro ao salvar:", e);
+      toast.success("Imagem enviada com sucesso!");
+    } catch (error) {
+      toast.error("Erro ao enviar imagem");
+      console.error(error);
     } finally {
-      setIsSaving(false);
+      setUploading(false);
     }
   };
 
-  // ------------------------------------------
-  // LÓGICA DE EDIÇÃO DE SLIDE INDIVIDUAL (mantida)
-  // ------------------------------------------
-  const openEditDialog = (index: number) => {
-    setEditingSlideIndex(index);
-    const slide = productImages[index];
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragActive(false);
 
-    // RESETANDO O FORMULÁRIO COM TODOS OS DADOS DE CONTEÚDO E IMAGEM
-    slideForm.reset({
-      title: slide.title || "",
-      subtitle: slide.subtitle || "",
-      cta_text: slide.cta_text || "",
-      cta_link: slide.cta_link || "",
-      image_fit: slide.image_fit || "cover",
-      image_position_x: slide.image_position_x ?? 50,
-      image_position_y: slide.image_position_y ?? 50,
-      image_zoom: slide.image_zoom ?? 100,
-    });
-
-    setIsSlideEditorOpen(true);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleImageUpload(e.dataTransfer.files[0]);
+    }
   };
 
-  // Função de Submissão do Formulário de Slide (mantida)
-  const handleSlideFormSubmit = (values: SlideContentFormValues) => {
-    if (editingSlideIndex === null) return;
+  const updateSlidePosition = (
+    key: "image_position_x" | "image_position_y" | "image_zoom",
+    value: number
+  ) => {
+    if (!selectedSlide || !heroData) return;
 
-    // Atualiza o objeto ProductImage/HeroSlide no array productImages
-    const newImages = [...productImages];
-    newImages[editingSlideIndex] = {
-      ...newImages[editingSlideIndex],
-      ...values, // Espalha os novos valores (texto e imagem config)
+    const updated = {
+      ...selectedSlide,
+      [key]: value,
     };
-    setProductImages(newImages);
 
-    toast.success(
-      `Conteúdo do Slide ${editingSlideIndex + 1} atualizado localmente.`
-    );
-    setIsSlideEditorOpen(false); // Fecha o modal
-    setEditingSlideIndex(null);
+    setSelectedSlide(updated);
+    setHeroData({
+      ...heroData,
+      slides: heroData.slides.map((s) =>
+        s.id === selectedSlide.id ? updated : s
+      ),
+    });
   };
 
-  // Handlers para o ImageFramingTool
-  const handleFramingChange = (x: number, y: number) => {
-    if (editingSlideIndex !== null) {
-      const newImages = [...productImages];
-      newImages[editingSlideIndex] = {
-        ...newImages[editingSlideIndex],
-        image_position_x: x,
-        image_position_y: y,
-      };
-      setProductImages(newImages);
-      slideForm.setValue("image_position_x", x, { shouldDirty: true });
-      slideForm.setValue("image_position_y", y, { shouldDirty: true });
+  const resetFraming = () => {
+    if (!selectedSlide || !heroData) return;
+
+    const updated = {
+      ...selectedSlide,
+      image_position_x: 50,
+      image_position_y: 50,
+      image_zoom: 100,
+    };
+
+    setSelectedSlide(updated);
+    setHeroData({
+      ...heroData,
+      slides: heroData.slides.map((s) =>
+        s.id === selectedSlide.id ? updated : s
+      ),
+    });
+    toast.success("Enquadramento resetado");
+  };
+
+  const addNewSlide = async () => {
+    try {
+      const response = await fetch(`${API_URL}/hero/slides`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image_url:
+            "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80",
+          order: heroData ? heroData.slides.length + 1 : 1,
+          title: "Novo Slide",
+          subtitle: "Adicione seu conteúdo aqui",
+          image_position_x: 50,
+          image_position_y: 50,
+          image_zoom: 100,
+          image_fit: "cover",
+        }),
+      });
+
+      if (!response.ok) throw new Error("Falha ao criar slide");
+
+      await fetchHeroData();
+      toast.success("Novo slide adicionado!");
+    } catch (error) {
+      toast.error("Erro ao adicionar slide");
+      console.error(error);
     }
   };
 
-  const handleZoomChange = (zoom: number) => {
-    if (editingSlideIndex !== null) {
-      const newImages = [...productImages];
-      newImages[editingSlideIndex] = {
-        ...newImages[editingSlideIndex],
-        image_zoom: zoom,
-      };
-      setProductImages(newImages);
-      slideForm.setValue("image_zoom", zoom, { shouldDirty: true });
+  const removeSlide = async (id: string) => {
+    try {
+      const response = await fetch(`${API_URL}/hero/slides/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) throw new Error("Falha ao remover slide");
+
+      await fetchHeroData();
+      if (selectedSlide?.id === id) {
+        setSelectedSlide(null);
+        setEditDialogOpen(false);
+      }
+      toast.success("Slide removido");
+    } catch (error) {
+      toast.error("Erro ao remover slide");
+      console.error(error);
     }
   };
 
-  const handleAddSlideClick = () => {
-    toast.info(
-      "Use o botão 'Adicionar Fotos' na seção 'Gestão de Imagens' para carregar novas imagens."
-    );
+  const saveSlideChanges = async (values: z.infer<typeof slideSchema>) => {
+    if (!selectedSlide) return;
+
+    try {
+      const response = await fetch(
+        `${API_URL}/hero/slides/${selectedSlide.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...selectedSlide,
+            ...values,
+          }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Falha ao salvar alterações");
+
+      await fetchHeroData();
+      setEditDialogOpen(false);
+      toast.success("Alterações salvas com sucesso!");
+    } catch (error) {
+      toast.error("Erro ao salvar alterações");
+      console.error(error);
+    }
   };
 
-  const currentEditingSlide =
-    editingSlideIndex !== null ? productImages[editingSlideIndex] : null;
+  const updateSettings = async (is_active: boolean) => {
+    if (!heroData) return;
 
-  if (loading || !heroData || !heroData.settings) {
-    // 🚨 NOTA: O Fallback no Backend deve garantir que o settings não seja null no
-    // primeiro carregamento (retorna o DEFAULT_HERO_SETTINGS).
-    // Caso contrário, esta tela não carregará.
-    // Se ainda vir este loading, confira a correção do backend!
+    try {
+      const response = await fetch(`${API_URL}/hero/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...heroData.settings,
+          is_active,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Falha ao atualizar configurações");
+
+      await fetchHeroData();
+      toast.success("Configurações atualizadas!");
+    } catch (error) {
+      toast.error("Erro ao atualizar configurações");
+      console.error(error);
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="p-6 text-center space-y-4">
-        <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-        <p className="font-montserrat text-muted-foreground">
-          Carregando configurações do Hero...
-        </p>
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!heroData) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-muted-foreground">Erro ao carregar dados</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* CABEÇALHO COM BOTÕES ALINHADOS */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-playfair font-bold text-foreground">
-            Gerenciar Vitrine da Loja
-          </h1>
-          <p className="text-muted-foreground font-montserrat">
-            Gerencie os textos e imagens do carrossel principal do site
-          </p>
-        </div>
-
-        <div className="flex gap-4">
-          {/* Botão Adicionar Slide */}
-          <Button
-            onClick={handleAddSlideClick}
-            className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-black font-montserrat font-semibold px-6 py-3 rounded-full shadow-lg"
-            disabled={isSaving}
-          >
-            <Plus className="w-4 h-4" />
-            Adicionar Slide
-          </Button>
-
-          {/* Botão Salvar Alterações (Ação principal) */}
-          <Button
-            onClick={handleSaveSettings}
-            disabled={isSaving}
-            className="bg-yellow-400 hover:bg-yellow-500 text-black font-montserrat font-semibold px-6 py-3 rounded-full shadow-lg"
-          >
-            {isSaving ? "Salvando..." : "Salvar Alterações"}
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid gap-6">
-        {/* Card de Configurações Gerais */}
-        <Card className="luxury-card">
-          <CardHeader>
-            <CardTitle className="font-playfair flex items-center gap-2">
-              <Settings className="w-5 h-5 text-primary" />
-              Configurações Gerais
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Campo Ativo/Inativo (usando Switch) */}
-            <div className="flex flex-row items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <label className="text-base font-montserrat">Status</label>
-                <p className="text-sm text-muted-foreground font-montserrat">
-                  {is_active
-                    ? "Vitrine da Loja visível na página inicial."
-                    : "Vitrine da Loja oculta."}
-                </p>
-              </div>
-              <Switch checked={is_active} onCheckedChange={setIsActive} />
-            </div>
-
-            {/* Campo Intervalo de Transição */}
-            <div className="space-y-2">
-              <label className="font-montserrat text-sm">
-                Intervalo de Transição (em milissegundos)
-              </label>
-              <Input
-                type="number"
-                value={interval_ms}
-                onChange={(e) => setIntervalMs(Number(e.target.value))}
-                min={1000}
-                step={500}
+    <div className="min-h-screen bg-background p-8">
+      <div className="max-w-7xl mx-auto animate-fade-in">
+        {/* Header */}
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-primary mb-2">
+              Gerenciador de Hero Section
+            </h1>
+            <p className="text-muted-foreground">
+              Gerencie os slides da vitrine principal do seu site
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Ativo</span>
+              <Switch
+                checked={heroData.settings.is_active}
+                onCheckedChange={updateSettings}
               />
-              <p className="text-xs text-muted-foreground">
-                Duração de cada slide: {interval_ms / 1000} segundos
-              </p>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSettingsDialogOpen(true)}
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Configurações
+            </Button>
+          </div>
+        </div>
 
-            {/* Ocultando o campo de Fundo Padrão (Fallback) conforme solicitado */}
-            {/* <h3 className="font-playfair text-lg font-semibold mt-6">
-              Fundo Padrão (Fallback)
-            </h3>
-            <Input
-              placeholder="URL da Imagem de Fundo Geral (Fallback)"
-              value={background_image_url}
-              onChange={(e) => setBackgroundImageUrl(e.target.value)}
-            /> 
-            */}
-
-            {/* Instrução de salvamento */}
-            <div className="flex justify-end mt-4 pt-4 border-t">
-              <p className="text-xs text-muted-foreground">
-                Use o botão "Salvar Alterações" no topo para salvar.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card de Gestão de Slides (com edição por slide) */}
-        <Card className="luxury-card">
-          <CardHeader>
-            <CardTitle className="font-playfair flex items-center gap-2">
-              <Image className="w-5 h-5 text-primary" />
-              Gestão de Imagens
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <MultipleImageUpload
-              images={productImages}
-              onChange={setProductImages}
-              maxImages={10}
-            />
-
-            {/* Lista de Slides com Botão de Edição */}
-            <h3 className="font-playfair text-lg font-semibold mt-6">
-              Conteúdo de Texto e Configuração por Slide
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {productImages.map((slide, index) => (
-                <div
-                  key={slide.image_url} // 🚨 Usando image_url
-                  className="relative border p-4 rounded-lg space-y-2 group"
-                >
-                  <img
-                    src={slide.image_url} // 🚨 Usando image_url
-                    alt={`Slide ${index + 1}`}
-                    className="w-full h-24 object-cover rounded"
-                  />
-                  <p className="text-sm font-montserrat font-semibold">
-                    Slide {index + 1}: {slide.title || "Sem Título"}
-                  </p>
-                  <p className="text-xs text-muted-foreground font-montserrat line-clamp-1">
-                    {slide.subtitle || "Sem Subtítulo"}
-                  </p>
-
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Slides List */}
+          <div className="lg:col-span-1">
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Slides</span>
                   <Button
-                    variant="outline"
+                    onClick={addNewSlide}
                     size="sm"
-                    className="absolute top-4 right-4 bg-background opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => openEditDialog(index)}
+                    className="bg-primary hover:bg-primary/90 glow-primary"
                   >
-                    <Edit className="w-4 h-4" />
+                    <Plus className="w-4 h-4 mr-2" />
+                    Novo
                   </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {heroData.slides
+                    .sort((a, b) => a.order - b.order)
+                    .map((slide) => (
+                      <div
+                        key={slide.id}
+                        className={`
+                          glass-card p-4 cursor-pointer transition-all animate-fade-in
+                          ${
+                            selectedSlide?.id === slide.id
+                              ? "ring-2 ring-primary glow-primary"
+                              : "hover:border-primary/50"
+                          }
+                        `}
+                        onClick={() => {
+                          setSelectedSlide(slide);
+                          setEditDialogOpen(true);
+                        }}
+                      >
+                        <div className="flex items-start gap-3">
+                          <GripVertical className="w-4 h-4 text-muted-foreground mt-1 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div
+                                className="w-16 h-10 rounded bg-cover bg-center"
+                                style={{
+                                  backgroundImage: `url(${slide.image_url})`,
+                                }}
+                              />
+                              <span className="text-sm font-medium truncate">
+                                {slide.title || `Slide ${slide.order}`}
+                              </span>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (slide.id) removeSlide(slide.id);
+                            }}
+                            className="flex-shrink-0"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                 </div>
-              ))}
-              {productImages.length === 0 && (
-                <p className="text-sm text-muted-foreground font-montserrat col-span-full text-center pt-8">
-                  Nenhum slide encontrado.
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Preview */}
+          <div className="lg:col-span-2">
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle>Preview</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {selectedSlide ? (
+                  <div className="relative h-64 rounded-lg overflow-hidden border-2 border-border">
+                    <div
+                      className="absolute inset-0 bg-cover transition-all duration-300"
+                      style={{
+                        backgroundImage: `url(${selectedSlide.image_url})`,
+                        backgroundPosition: `${
+                          selectedSlide.image_position_x || 50
+                        }% ${selectedSlide.image_position_y || 50}%`,
+                        transform: `scale(${
+                          (selectedSlide.image_zoom || 100) / 100
+                        })`,
+                        objectFit: selectedSlide.image_fit || "cover",
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-6">
+                      <div>
+                        <h3 className="text-2xl font-bold text-white mb-1">
+                          {selectedSlide.title || "Título do Slide"}
+                        </h3>
+                        <p className="text-white/80">
+                          {selectedSlide.subtitle || "Subtítulo do slide"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-64 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
+                    <p className="text-muted-foreground">
+                      Selecione um slide para visualizar
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
 
-      {/* DIALOG DE EDIÇÃO DE SLIDE (Com Formulario Completo) */}
-      <Dialog open={isSlideEditorOpen} onOpenChange={setIsSlideEditorOpen}>
-        <DialogContent className="max-w-[600px] max-h-[90vh] overflow-y-auto">
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-playfair">
-              Slide {editingSlideIndex !== null ? editingSlideIndex + 1 : ""}:{" "}
-              {currentEditingSlide?.title || "Novo Slide"}
-            </DialogTitle>
+            <DialogTitle>Editar Slide</DialogTitle>
+            <DialogDescription>
+              Configure o conteúdo e aparência do slide
+            </DialogDescription>
           </DialogHeader>
 
-          {currentEditingSlide && (
-            <Form {...slideForm}>
-              <form
-                onSubmit={slideForm.handleSubmit(handleSlideFormSubmit)}
-                className="space-y-6 pt-2"
+          {selectedSlide && (
+            <div className="space-y-6">
+              {/* Image Upload */}
+              <div
+                className={`
+                  relative h-64 rounded-lg overflow-hidden border-2 border-dashed
+                  transition-colors ${
+                    dragActive
+                      ? "border-primary bg-primary/10"
+                      : "border-border"
+                  }
+                `}
+                onDrop={handleDrop}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragActive(true);
+                }}
+                onDragLeave={() => setDragActive(false)}
               >
-                {/* 1. CAMPOS DE TEXTO (Título e Subtítulo) */}
-                <div className="space-y-4">
+                <div
+                  className="absolute inset-0 bg-cover transition-all duration-300"
+                  style={{
+                    backgroundImage: `url(${selectedSlide.image_url})`,
+                    backgroundPosition: `${
+                      selectedSlide.image_position_x || 50
+                    }% ${selectedSlide.image_position_y || 50}%`,
+                    transform: `scale(${
+                      (selectedSlide.image_zoom || 100) / 100
+                    })`,
+                  }}
+                />
+
+                <div className="absolute top-4 right-4">
+                  <input
+                    type="file"
+                    id="image-upload-dialog"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files?.[0])
+                        handleImageUpload(e.target.files[0]);
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="bg-black/50 backdrop-blur hover:bg-black/70"
+                    disabled={uploading}
+                    onClick={() =>
+                      document.getElementById("image-upload-dialog")?.click()
+                    }
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {uploading ? "Enviando..." : "Upload"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Framing Controls */}
+              <div className="space-y-4">
+                <h3 className="font-semibold">Ajustes de Enquadramento</h3>
+
+                <div>
+                  <label className="text-sm font-medium mb-3 flex items-center justify-between">
+                    <span>Posição X</span>
+                    <span className="text-xs text-muted-foreground">
+                      {selectedSlide.image_position_x || 50}%
+                    </span>
+                  </label>
+                  <Slider
+                    value={[selectedSlide.image_position_x || 50]}
+                    onValueChange={(v) =>
+                      updateSlidePosition("image_position_x", v[0])
+                    }
+                    max={100}
+                    step={1}
+                    className="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-3 flex items-center justify-between">
+                    <span>Posição Y</span>
+                    <span className="text-xs text-muted-foreground">
+                      {selectedSlide.image_position_y || 50}%
+                    </span>
+                  </label>
+                  <Slider
+                    value={[selectedSlide.image_position_y || 50]}
+                    onValueChange={(v) =>
+                      updateSlidePosition("image_position_y", v[0])
+                    }
+                    max={100}
+                    step={1}
+                    className="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-3 flex items-center justify-between">
+                    <span>Zoom</span>
+                    <span className="text-xs text-muted-foreground">
+                      {selectedSlide.image_zoom || 100}%
+                    </span>
+                  </label>
+                  <Slider
+                    value={[selectedSlide.image_zoom || 100]}
+                    onValueChange={(v) =>
+                      updateSlidePosition("image_zoom", v[0])
+                    }
+                    min={50}
+                    max={200}
+                    step={5}
+                    className="w-full"
+                  />
+                </div>
+
+                <Button
+                  type="button"
+                  onClick={resetFraming}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Resetar Enquadramento
+                </Button>
+              </div>
+
+              {/* Form */}
+              <Form {...form}>
+                <form
+                  onSubmit={form.handleSubmit(saveSlideChanges)}
+                  className="space-y-4"
+                >
                   <FormField
-                    control={slideForm.control}
+                    control={form.control}
                     name="title"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-montserrat">
-                          Título Principal
-                        </FormLabel>
+                        <FormLabel>Título</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="Elegância em Cada Ocasião"
-                            {...field}
-                          />
+                          <Input {...field} placeholder="Título do slide" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -526,17 +644,44 @@ const HeroManagement = () => {
                   />
 
                   <FormField
-                    control={slideForm.control}
+                    control={form.control}
                     name="subtitle"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-montserrat">
-                          Subtítulo
-                        </FormLabel>
+                        <FormLabel>Subtítulo</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Subtítulo do slide" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="cta_text"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Texto do Botão (CTA)</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Ex: Saiba Mais" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="cta_link"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Link do Botão</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Alugue looks únicos para momentos especiais"
                             {...field}
+                            placeholder="https://..."
+                            type="url"
                           />
                         </FormControl>
                         <FormMessage />
@@ -544,74 +689,29 @@ const HeroManagement = () => {
                     )}
                   />
 
-                  {/* Campos CTA */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={slideForm.control}
-                      name="cta_text"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="font-montserrat">
-                            Texto do Botão (CTA)
-                          </FormLabel>
-                          <FormControl>
-                            <Input placeholder="Ver Coleção" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={slideForm.control}
-                      name="cta_link"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="font-montserrat">
-                            Link do Botão (URL)
-                          </FormLabel>
-                          <FormControl>
-                            <Input placeholder="/colecao" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                {/* 2. CONFIGURAÇÕES DA IMAGEM */}
-                <h3 className="font-playfair text-lg font-semibold border-t pt-6">
-                  Configuração da Imagem
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Ajuste da Imagem (image_fit) */}
                   <FormField
-                    control={slideForm.control}
+                    control={form.control}
                     name="image_fit"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-montserrat">
-                          Ajuste da Imagem
-                        </FormLabel>
+                        <FormLabel>Ajuste da Imagem</FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Cobrir (Cover)" />
+                              <SelectValue placeholder="Selecione o ajuste" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="cover">
-                              Cobrir (Cover)
+                              Cover (Preencher)
                             </SelectItem>
                             <SelectItem value="contain">
-                              Conter (Contain)
+                              Contain (Conter)
                             </SelectItem>
-                            <SelectItem value="fill">
-                              Preencher (Fill)
-                            </SelectItem>
+                            <SelectItem value="fill">Fill (Esticar)</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -619,70 +719,29 @@ const HeroManagement = () => {
                     )}
                   />
 
-                  {/* Posição da Imagem (image_position_x/y - aqui só o label) */}
-                  <FormItem>
-                    <FormLabel className="font-montserrat">
-                      Posição da Imagem
-                    </FormLabel>
-                    <Select disabled defaultValue="center">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Centro" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="center">Centro</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                </div>
-
-                {/* 3. FERRAMENTA DE ENQUADRAMENTO */}
-                <h3 className="font-playfair text-lg font-semibold border-t pt-6">
-                  Ajuste Manual de Enquadramento
-                </h3>
-
-                {currentEditingSlide.image_url ? (
-                  <ImageFramingTool
-                    imageUrl={currentEditingSlide.image_url} // 🚨 Usando image_url
-                    // Valores lidos do formState para a ferramenta
-                    positionX={slideForm.watch("image_position_x") || 50}
-                    positionY={slideForm.watch("image_position_y") || 50}
-                    zoom={slideForm.watch("image_zoom") || 100}
-                    // Handlers para atualizar o estado e o formulário
-                    onPositionChange={handleFramingChange}
-                    onZoomChange={handleZoomChange}
-                    title={currentEditingSlide.title}
-                    subtitle={currentEditingSlide.subtitle}
-                  />
-                ) : (
-                  <div className="text-muted-foreground text-sm border p-4 rounded-lg text-center">
-                    Nenhuma imagem selecionada para enquadramento.
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setEditDialogOpen(false)}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="flex-1 bg-primary hover:bg-primary/90 glow-primary text-white"
+                    >
+                      <Save className="w-4 h-4 mr-2 text-white" />
+                      Salvar Alterações
+                    </Button>
                   </div>
-                )}
-
-                <div className="flex justify-end gap-3 pt-4 border-t">
-                  <Button
-                    type="button"
-                    onClick={() => setIsSlideEditorOpen(false)}
-                    variant="outline"
-                    className="font-montserrat"
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="font-montserrat bg-primary hover:bg-primary-dark"
-                  >
-                    Salvar Conteúdo Local
-                  </Button>
-                </div>
-              </form>
-            </Form>
+                </form>
+              </Form>
+            </div>
           )}
         </DialogContent>
       </Dialog>
     </div>
   );
 };
-
-export default HeroManagement;
