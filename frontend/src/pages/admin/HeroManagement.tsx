@@ -465,24 +465,29 @@ const HeroManagement = () => {
                       <div
                         key={slide.id || index}
                         className={`
-                          glass-card p-4 cursor-pointer transition-all animate-fade-in
+                          glass-card p-4 transition-all animate-fade-in
+                          // Remove 'cursor-pointer' do container e não abre o modal no clique
                           ${
                             selectedSlide?.id === slide.id
                               ? "ring-2 ring-primary glow-primary"
                               : "hover:border-primary/50"
                           }
                         `}
+                        // Ação de seleção simples: Atualiza apenas o slide no Preview (mas não abre o modal)
                         onClick={() => {
                           setSelectedSlide(slide);
-                          setEditDialogOpen(true);
                         }}
                       >
-                        <div className="flex items-start gap-3">
-                          <GripVertical className="w-4 h-4 text-muted-foreground mt-1 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center justify-between gap-3">
+                          {" "}
+                          {/* Alterado de items-start para items-center */}
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <GripVertical className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+
+                            {/* Conteúdo do slide (Imagem + Título) */}
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
                               <div
-                                className="w-16 h-10 rounded bg-cover bg-center"
+                                className="w-16 h-10 rounded bg-cover bg-center flex-shrink-0"
                                 style={{
                                   backgroundImage: `url(${slide.image_url})`,
                                 }}
@@ -492,17 +497,34 @@ const HeroManagement = () => {
                               </span>
                             </div>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (slide.id) removeSlide(slide.id);
-                            }}
-                            className="flex-shrink-0"
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
+                          {/* Ações: Editar e Deletar */}
+                          <div className="flex gap-1 flex-shrink-0">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="Editar Slide"
+                              className="text-primary hover:text-primary/80"
+                              onClick={(e) => {
+                                e.stopPropagation(); // Evita que o clique se propague para a seleção
+                                setSelectedSlide(slide);
+                                setEditDialogOpen(true); // Abre o modal de edição
+                              }}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="Remover Slide"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (slide.id) removeSlide(slide.id);
+                              }}
+                              className="text-red-500 hover:bg-red-500/10"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))}
