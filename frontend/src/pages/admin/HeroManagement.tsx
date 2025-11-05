@@ -1,3 +1,5 @@
+// HeroManagement.tsx
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +9,6 @@ import { toast } from "sonner";
 import {
   Loader2,
   Settings,
-  Image,
   Edit,
   Plus,
   RotateCcw,
@@ -43,7 +44,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
-// CORRIGIDO: Alterado para a porta 3000, que é a porta real do backend
 const API_URL = "http://localhost:3000/api";
 
 // Interfaces baseadas no modelo Prisma
@@ -85,7 +85,6 @@ const slideSchema = z.object({
   image_fit: z.enum(["cover", "contain", "fill"]).optional(),
 });
 
-// CORRIGIDO: Alterado para 'const HeroManagement'
 const HeroManagement = () => {
   const [heroData, setHeroData] = useState<HeroData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -128,11 +127,8 @@ const HeroManagement = () => {
       if (!response.ok) throw new Error("Falha ao carregar dados");
       const data: HeroData = await response.json();
 
-      // CORREÇÃO: Garante que todos os slides tenham um ID de string.
-      // Isso resolve o problema de exclusão de slides criados sem ID.
       const processedSlides = data.slides.map((slide, index) => {
         if (!slide.id) {
-          // Atribui um ID temporário e estável para deleção
           return { ...slide, id: `temp-${index}` };
         }
         return slide;
@@ -147,9 +143,37 @@ const HeroManagement = () => {
     }
   };
 
+  // NOVO: Função auxiliar para salvar o slide no DB
+  const saveSlideToDB = async (slideData: HeroSlide) => {
+    // 1. Prepara os dados para o PUT (remove campos que podem ser temporários)
+    const payload = { ...slideData };
+    // Se precisar remover campos que não existem no banco de dados, faça aqui:
+    // delete payload.someTemporaryField;
+
+    try {
+      const response = await fetch(`${API_URL}/hero/slides/${slideData.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        // Usa o slideData completo (já com a URL permanente)
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) throw new Error("Falha ao salvar alterações");
+
+      // Recarrega os dados para ter o estado mais fresco do servidor
+      await fetchHeroData();
+    } catch (error) {
+      console.error("Erro ao salvar slide:", error);
+      throw new Error("Erro ao salvar alterações no servidor.");
+    }
+  };
+
   // Função para lidar com o upload e o erro blob
   const handleImageUpload = async (file: File) => {
     if (!selectedSlide) return;
+
+    // Guarda o original para reverter em caso de falha
+    const originalSlide = { ...selectedSlide };
 
     // 1. CRIAÇÃO DO BLOB URL PARA PRÉ-VISUALIZAÇÃO IMEDIATA
     const tempImageUrl = URL.createObjectURL(file);
@@ -182,32 +206,28 @@ const HeroManagement = () => {
       const data = await response.json();
       const serverResponseUrl = data.url;
 
-      // Atualiza o estado com a URL PERMANENTE do servidor
+      // 2. Cria o objeto de slide com a URL PERMANENTE do servidor
       const finalUpdatedSlide = {
-        ...selectedSlide,
+        ...originalSlide,
         image_url: serverResponseUrl,
       };
+
+      // 3. Atualiza o estado local com a URL permanente
       setSelectedSlide(finalUpdatedSlide);
 
-      if (heroData) {
-        setHeroData({
-          ...heroData,
-          slides: heroData.slides.map((s) =>
-            s.id === selectedSlide.id ? finalUpdatedSlide : s
-          ),
-        });
-      }
+      // PASSO CRÍTICO: SALVA IMEDIATAMENTE A NOVA URL PERMANENTE NO BANCO DE DADOS
+      await saveSlideToDB(finalUpdatedSlide);
 
-      toast.success("Imagem enviada com sucesso!");
+      toast.success("Imagem enviada e URL permanente salva com sucesso!");
     } catch (error) {
       toast.error("Erro ao enviar imagem");
       console.error(error);
 
-      // Se houver falha, recarrega os dados do servidor para reverter a pré-visualização
+      // Se houver falha (no upload ou no saveToDB), recarrega os dados do servidor para reverter o estado
       await fetchHeroData();
     } finally {
       setUploading(false);
-      // ESSENCIAL: Revoga o Blob URL na seção 'finally'.
+      // Revoga o Blob URL na seção 'finally'.
       URL.revokeObjectURL(tempImageUrl);
     }
   };
@@ -241,7 +261,7 @@ const HeroManagement = () => {
     });
   };
 
-  const resetFraming = () => {
+  const resetFraming = async () => {
     if (!selectedSlide || !heroData) return;
 
     const updated = {
@@ -251,18 +271,18 @@ const HeroManagement = () => {
       image_zoom: 100,
     };
 
-    setSelectedSlide(updated);
-    setHeroData({
-      ...heroData,
-      slides: heroData.slides.map((s) =>
-        s.id === selectedSlide.id ? updated : s
-      ),
-    });
-    toast.success("Enquadramento resetado");
+    try {
+      await saveSlideToDB(updated);
+      setSelectedSlide(updated);
+      toast.success("Enquadramento resetado e salvo!");
+    } catch (error) {
+      toast.error("Erro ao resetar enquadramento.");
+    }
   };
 
   const addNewSlide = async () => {
     try {
+      // Seu endpoint de adição já deve retornar um slide com o URL permanente
       const response = await fetch(`${API_URL}/hero/slides`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -293,20 +313,14 @@ const HeroManagement = () => {
     if (!heroData) return;
 
     try {
-      // 1. Filtra localmente o slide a ser removido (usando o ID temporário ou permanente)
       const currentSlides = heroData.slides || [];
-      // Filtra o slide com o ID correspondente
       const remainingSlides = currentSlides.filter((slide) => slide.id !== id);
 
-      // 2. Reordena e limpa IDs temporários antes de enviar ao servidor
       const reorderedSlides = remainingSlides.map((slide, index) => {
-        // Verifica se é um ID temporário (iniciado com 'temp-')
         const isTempId = slide.id && String(slide.id).startsWith("temp-");
 
-        // Retorna o slide com a ordem atualizada e o ID limpo se for temporário
         return {
           ...slide,
-          // Limpa o ID temporário (deixa como undefined) para que o backend não o utilize
           id: isTempId ? undefined : slide.id,
           order: index + 1,
         };
@@ -317,7 +331,6 @@ const HeroManagement = () => {
         slides: reorderedSlides,
       };
 
-      // 3. Usa o PUT /api/hero para substituir toda a lista de slides no back-end (UPSERT)
       const response = await fetch(`${API_URL}/hero`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -326,7 +339,6 @@ const HeroManagement = () => {
 
       if (!response.ok) throw new Error("Falha ao remover slide no servidor.");
 
-      // 4. Se o PUT for bem-sucedido, refetch (fetchHeroData) para atualizar o estado
       await fetchHeroData();
 
       if (selectedSlide?.id === id) {
@@ -337,30 +349,22 @@ const HeroManagement = () => {
     } catch (error) {
       toast.error("Erro ao remover slide. Verifique o console.");
       console.error(error);
-      // Opcional: refetch para reverter o estado local em caso de falha de PUT
       await fetchHeroData();
     }
   };
 
+  // REFATORADO: Agora usa saveSlideToDB
   const saveSlideChanges = async (values: z.infer<typeof slideSchema>) => {
     if (!selectedSlide) return;
 
     try {
-      const response = await fetch(
-        `${API_URL}/hero/slides/${selectedSlide.id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...selectedSlide,
-            ...values,
-          }),
-        }
-      );
+      const updatedSlide = {
+        ...selectedSlide, // Contém a URL PERMANENTE do estado
+        ...values,
+      };
 
-      if (!response.ok) throw new Error("Falha ao salvar alterações");
+      await saveSlideToDB(updatedSlide as HeroSlide);
 
-      await fetchHeroData();
       setEditDialogOpen(false);
       toast.success("Alterações salvas com sucesso!");
     } catch (error) {
@@ -466,21 +470,18 @@ const HeroManagement = () => {
                         key={slide.id || index}
                         className={`
                           glass-card p-4 transition-all animate-fade-in
-                          // Remove 'cursor-pointer' do container e não abre o modal no clique
                           ${
                             selectedSlide?.id === slide.id
                               ? "ring-2 ring-primary glow-primary"
                               : "hover:border-primary/50"
                           }
                         `}
-                        // Ação de seleção simples: Atualiza apenas o slide no Preview (mas não abre o modal)
                         onClick={() => {
                           setSelectedSlide(slide);
                         }}
                       >
                         <div className="flex items-center justify-between gap-3">
                           {" "}
-                          {/* Alterado de items-start para items-center */}
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <GripVertical className="w-4 h-4 text-muted-foreground flex-shrink-0" />
 
@@ -840,5 +841,4 @@ const HeroManagement = () => {
   );
 };
 
-// CORRIGIDO: Exportação padrão para resolver o erro de módulo no App.tsx
 export default HeroManagement;

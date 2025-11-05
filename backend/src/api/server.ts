@@ -19,12 +19,14 @@ const repositoryFactory = new PrismaRepositoryFactory(prisma);
 app.use(cors());
 app.use(express.json());
 
+// INÍCIO DO BLOCO DE DEBUG E CONFIGURAÇÃO DE ARQUIVOS ESTÁTICOS
+const uploadsPath = path.join(__dirname, "../..", "uploads");
+// ESTA LINHA MOSTRARÁ NO SEU TERMINAL O CAMINHO ABSOLUTO
+console.log(`[DEBUG] Servindo arquivos estáticos de: ${uploadsPath}`);
+
 // SERVE A PASTA UPLOADS E A TORNA ACESSÍVEL VIA URL /uploads
-// O caminho resolve para a pasta `backend/uploads` na raiz do projeto.
-app.use(
-  "/uploads",
-  express.static(path.join(__dirname, "../../..", "uploads"))
-);
+// O caminho resolve para a pasta `backend/uploads`
+app.use("/uploads", express.static(uploadsPath));
 
 const adminRouter = createAdminRoutes(repositoryFactory);
 const piecesRouter = createPiecesRoutes(repositoryFactory);

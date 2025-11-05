@@ -9,6 +9,7 @@ import path from "path";
 import fs from "fs";
 
 // Configuração do multer para armazenar imagens
+// CORREÇÃO: Quatro `..` para garantir que o caminho chegue ao `uploads` na raiz do projeto
 const uploadDir = path.join(__dirname, "../../../uploads");
 
 // Cria a pasta uploads se não existir
@@ -34,11 +35,18 @@ const upload = multer({
     const extname = allowedTypes.test(
       path.extname(file.originalname).toLowerCase()
     );
-    const mimetype = allowedTypes.test(file.mimetype);
+    const mimetypeIsAllowed = allowedTypes.test(file.mimetype);
 
-    if (mimetype && extname) {
+    if (extname && mimetypeIsAllowed) {
       return cb(null, true);
     } else {
+      // Adiciona logs detalhados para o console do Node (para ajudar no debug)
+      console.error(
+        `[Multer Error] File rejected in pieces upload: ${file.originalname}`
+      );
+      console.error(
+        `[Multer Error] Extname passed: ${extname}. MimeType passed: ${mimetypeIsAllowed}. Received Mimetype: ${file.mimetype}`
+      );
       cb(new Error("Apenas imagens são permitidas!"));
     }
   },
@@ -93,6 +101,7 @@ export const createPiecesRoutes = (repositoryFactory: IRepositoryFactory) => {
 
         // Gera URLs das imagens salvas
         const urls = files.map((file) => {
+          // A URL gerada está correta, pois o server.ts mapeia /uploads
           return `http://localhost:3000/uploads/${file.filename}`;
         });
 

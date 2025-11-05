@@ -53,6 +53,7 @@ import {
   ToggleLeft,
   ToggleRight,
   ImageIcon,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
@@ -69,6 +70,7 @@ const PIECES_URL = `${API_URL}/pieces`;
 const CATEGORIES_URL = `${API_URL}/categories`;
 const UPLOAD_URL = `${API_URL}/pieces/upload-images`;
 
+// Interfaces... (mantidas como estão no seu código)
 interface Piece {
   id: string;
   name: string;
@@ -91,6 +93,7 @@ interface Category {
   name: string;
 }
 
+// Schema de validação (ajustado para aceitar 'file' temporário do frontend)
 const pieceSchema = z.object({
   name: z
     .string()
@@ -108,11 +111,15 @@ const pieceSchema = z.object({
       }
       return val;
     }),
+  // Adicionamos um esquema flexível para validar apenas o que é necessário
   images: z
     .array(
       z.object({
-        url: z.string(),
+        url: z.string().optional(),
+        image_url: z.string().optional(),
         order: z.number(),
+        isNew: z.boolean().optional(),
+        file: z.any().optional(),
       })
     )
     .optional(),
@@ -131,7 +138,9 @@ const PiecesManagement = () => {
   const [imagePositionY, setImagePositionY] = useState(50);
   const [imageZoom, setImageZoom] = useState(100);
 
-  const form = useForm<z.infer<typeof pieceSchema>>({
+  type PieceFormValues = z.infer<typeof pieceSchema>;
+
+  const form = useForm<PieceFormValues>({
     resolver: zodResolver(pieceSchema),
     defaultValues: {
       name: "",
@@ -145,6 +154,7 @@ const PiecesManagement = () => {
         comprimento: "",
         tamanho: "",
       },
+      images: [],
     },
   });
 
@@ -152,6 +162,8 @@ const PiecesManagement = () => {
     fetchPieces();
     fetchCategories();
   }, []);
+
+  // ... (fetchPieces, fetchCategories, toggleStatus, deletePiece - mantidas as funções auxiliares)
 
   const fetchPieces = async () => {
     try {
@@ -178,24 +190,80 @@ const PiecesManagement = () => {
     }
   };
 
-  const uploadNewImages = async (
-    images: ProductImage[]
-  ): Promise<Array<{ url: string; order: number }>> => {
+  const toggleStatus = async (piece: Piece) => {
+    try {
+      const newStatus = piece.status === "available" ? "rented" : "available";
+      const response = await fetch(`${PIECES_URL}/${piece.id}/toggle-status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Erro ao alterar status");
+      }
+
+      const statusText = newStatus === "available" ? "disponível" : "alugada";
+      toast.success(`Peça marcada como ${statusText}`);
+      fetchPieces();
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast.error("Erro ao alterar status");
+    }
+  };
+
+  const deletePiece = async (piece: Piece) => {
+    try {
+      if (
+        !window.confirm(
+          `Tem certeza que deseja excluir a peça "${piece.name}"?`
+        )
+      )
+        return;
+
+      const response = await fetch(`${PIECES_URL}/${piece.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Erro ao excluir peça");
+      }
+
+      toast.success(`Peça "${piece.name}" removida do catálogo`);
+      fetchPieces();
+    } catch (error) {
+      console.error("Error deleting piece:", error);
+      toast.error("Erro ao excluir peça");
+    }
+  };
+
+  // =========================================================================
+  // CORREÇÃO: Lógica de Upload Aprimorada (Com Logs Fortes)
+  // =========================================================================
+
+  const uploadNewImages = async (images: ProductImage[]): Promise<string[]> => {
     const filesToUpload = images
       .filter((img) => img.isNew && img.file)
       .map((img) => img.file) as File[];
 
     if (filesToUpload.length === 0) {
+      console.log("No new files to upload. Skipping upload step.");
       return [];
     }
 
     const formData = new FormData();
     filesToUpload.forEach((file) => {
+      // O nome 'files' DEVE coincidir com o esperado pelo Multer em pieces.route.ts
       formData.append("files", file);
     });
 
     try {
-      console.log("📤 Enviando", filesToUpload.length, "arquivo(s)...");
+      console.log(
+        "📤 Iniciando Upload. Arquivos a enviar:",
+        filesToUpload.length
+      );
 
       const uploadResponse = await fetch(UPLOAD_URL, {
         method: "POST",
@@ -203,105 +271,118 @@ const PiecesManagement = () => {
       });
 
       if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json();
-        throw new Error(errorData.message || "Falha no upload de imagens.");
+        const errorText = await uploadResponse.text();
+        console.error(
+          "❌ Erro na resposta do upload (Status:",
+          uploadResponse.status,
+          "):",
+          errorText
+        );
+        // Tenta parsear JSON se possível, caso contrário usa texto do erro
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(
+            errorData.message ||
+              `Falha no upload com status: ${uploadResponse.status}`
+          );
+        } catch (e) {
+          throw new Error(
+            `Falha no upload (Erro do servidor não JSON): ${errorText.substring(
+              0,
+              50
+            )}...`
+          );
+        }
       }
 
-      const { urls } = await uploadResponse.json();
-      console.log("✅ Upload concluído. URLs:", urls);
+      const data: { urls: string[] } = await uploadResponse.json();
+      const urls = data.urls || [];
 
-      const newUploadedImages = urls.map((url: string, index: number) => ({
-        url,
-        order: images.filter((img) => !img.isNew).length + index,
-      }));
+      if (urls.length === 0 && filesToUpload.length > 0) {
+        // O servidor retornou 200, mas sem URLs.
+        console.error(
+          "❌ ERRO: Upload retornou sucesso, mas lista de URLs está vazia."
+        );
+        throw new Error(
+          "Falha interna: o servidor não forneceu os URLs das imagens salvas."
+        );
+      }
 
-      return newUploadedImages;
+      console.log("✅ Upload concluído. URLs permanentes recebidos:", urls);
+
+      return urls; // Retorna array de strings: ['url1', 'url2', ...]
     } catch (error) {
-      console.error("❌ Erro no upload:", error);
-      toast.error("Erro ao fazer upload de uma ou mais imagens");
+      // Re-throw para ser pego pelo catch de onSubmit
       throw error;
     }
   };
 
-  const onSubmit = async (values: z.infer<typeof pieceSchema>) => {
+  const onSubmit = async (values: PieceFormValues) => {
     try {
       setUploading(true);
-      console.log("🔄 Iniciando salvamento de peça...");
-      console.log("📋 Valores do formulário:", values);
-      console.log("🖼️ Imagens selecionadas:", productImages);
 
-      const existingImages = productImages.filter((img) => !img.isNew);
-      console.log("📦 Imagens existentes:", existingImages.length);
+      // 1. UPLOAD DE IMAGENS E OBTENÇÃO DOS URLS PERMANENTES
+      // Se houver falha aqui, a exceção é lançada e o `catch` é chamado.
+      const newPermanentUrls = await uploadNewImages(productImages);
 
-      const newImages = productImages.filter((img) => img.isNew);
-      console.log("🆕 Imagens novas para upload:", newImages.length);
+      // 2. FILTRA IMAGENS EXISTENTES (apenas URLs permanentes que não são novos)
+      const existingImages = productImages
+        .filter((img) => !img.isNew) // Apenas imagens que já existiam
+        .map((img) => img.image_url)
+        .filter((url) => url && !url.startsWith("blob:")) as string[]; // Garante que são URLs permanentes
 
-      const uploadedNewImages = await uploadNewImages(productImages);
-      console.log("✅ Imagens enviadas:", uploadedNewImages);
+      // 3. MESCLA: URLs existentes + URLs novas.
+      const finalUrlList = [...existingImages, ...newPermanentUrls];
 
-      const finalImages = [...existingImages, ...uploadedNewImages]
-        .map((img, i) => ({
-          url: "url" in img ? img.url : img.image_url,
-          order: i,
-        }))
-        .sort((a, b) => a.order - b.order);
+      // 4. Mapeia para o formato final que o Backend espera (Array de objetos { url, order })
+      const finalImages = finalUrlList.map((url, index) => ({
+        url: url,
+        order: index + 1, // Reordena de 1 em diante
+      }));
 
-      console.log("🎯 Imagens finais:", finalImages);
+      if (finalImages.length === 0) {
+        throw new Error(
+          "É necessário ter pelo menos uma imagem para salvar a peça."
+        );
+      }
 
       const pieceData = {
         name: values.name,
         category_id: values.category_id,
         status: values.status,
-        image_url: finalImages.length > 0 ? finalImages[0].url : null,
         images: finalImages,
+        image_url: finalImages[0].url, // Define a primeira como imagem principal
         image_position_x: imagePositionX,
         image_position_y: imagePositionY,
         image_zoom: imageZoom,
         description: values.description || null,
-        measurements:
-          values.measurements &&
-          Object.keys(values.measurements).some(
-            (key) => values.measurements?.[key]
-          )
-            ? values.measurements
-            : null,
+        measurements: values.measurements,
       };
 
-      console.log("📦 Dados da peça a ser salva:", pieceData);
-
       let response: Response;
+      const url = editingPiece
+        ? `${PIECES_URL}/${editingPiece.id}`
+        : PIECES_URL;
+      const method = editingPiece ? "PUT" : "POST";
 
-      if (editingPiece) {
-        console.log("✏️ Atualizando peça existente:", editingPiece.id);
-        response = await fetch(`${PIECES_URL}/${editingPiece.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(pieceData),
-        });
-      } else {
-        console.log("➕ Criando nova peça");
-        response = await fetch(PIECES_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(pieceData),
-        });
-      }
+      response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pieceData),
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("❌ Erro na resposta:", errorData);
         throw new Error(
           errorData.message || "Erro desconhecido ao salvar peça"
         );
       }
 
-      const savedPiece = await response.json();
-      console.log("✅ Peça salva com sucesso:", savedPiece);
-
       toast.success(
         `Peça ${editingPiece ? "atualizada" : "adicionada"} com sucesso!`
       );
 
+      // LIMPEZA E RECARGA
       setIsDialogOpen(false);
       setEditingPiece(null);
       setProductImages([]);
@@ -321,54 +402,13 @@ const PiecesManagement = () => {
     }
   };
 
-  const toggleStatus = async (piece: Piece) => {
-    try {
-      const response = await fetch(`${PIECES_URL}/${piece.id}/toggle-status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: piece.status }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Erro ao alterar status");
-      }
-
-      const newStatus = piece.status === "available" ? "rented" : "available";
-      const statusText = newStatus === "available" ? "disponível" : "alugada";
-      toast.success(`Peça marcada como ${statusText}`);
-      fetchPieces();
-    } catch (error) {
-      console.error("Error updating status:", error);
-      toast.error("Erro ao alterar status");
-    }
-  };
-
-  const deletePiece = async (piece: Piece) => {
-    try {
-      const response = await fetch(`${PIECES_URL}/${piece.id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Erro ao excluir peça");
-      }
-
-      toast.success(`Peça "${piece.name}" removida do catálogo`);
-      fetchPieces();
-    } catch (error) {
-      console.error("Error deleting piece:", error);
-      toast.error("Erro ao excluir peça");
-    }
-  };
-
   const openEditDialog = (piece: Piece) => {
     setEditingPiece(piece);
 
-    const existingImages: ProductImage[] =
-      piece.images && (piece.images as Array<any>).length > 0
-        ? (piece.images as Array<any>).map((img) => ({
+    // Mapeamento correto para o estado do frontend (usando ProductImage)
+    const pieceImages: ProductImage[] =
+      piece.images && piece.images.length > 0
+        ? piece.images.map((img) => ({
             image_url: img.url,
             order: img.order,
             isNew: false,
@@ -377,7 +417,7 @@ const PiecesManagement = () => {
         ? [{ image_url: piece.image_url, order: 0, isNew: false }]
         : [];
 
-    setProductImages(existingImages);
+    setProductImages(pieceImages);
     setImagePositionX(piece.image_position_x ?? 50);
     setImagePositionY(piece.image_position_y ?? 50);
     setImageZoom(piece.image_zoom ?? 100);
@@ -394,6 +434,7 @@ const PiecesManagement = () => {
         comprimento: "",
         tamanho: "",
       },
+      images: pieceImages as any,
     });
     setIsDialogOpen(true);
   };
@@ -406,7 +447,7 @@ const PiecesManagement = () => {
     setImageZoom(100);
     form.reset({
       name: "",
-      category_id: "",
+      category_id: categories[0]?.id || "",
       status: "available",
       description: "",
       measurements: {
@@ -416,6 +457,7 @@ const PiecesManagement = () => {
         comprimento: "",
         tamanho: "",
       },
+      images: [],
     });
     setIsDialogOpen(true);
   };
@@ -562,6 +604,7 @@ const PiecesManagement = () => {
                 />
 
                 <div className="space-y-4">
+                  {/* Este componente agora só lida com o estado local 'productImages' */}
                   <MultipleImageUpload
                     images={productImages}
                     onChange={setProductImages}
@@ -695,7 +738,14 @@ const PiecesManagement = () => {
                     disabled={uploading}
                     className="bg-primary hover:bg-primary-dark font-montserrat"
                   >
-                    {uploading ? "Salvando..." : "Salvar"}
+                    {uploading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      "Salvar"
+                    )}
                   </Button>
                 </div>
               </form>

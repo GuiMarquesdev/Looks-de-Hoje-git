@@ -11,6 +11,7 @@ const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 // Configuração do multer para armazenar imagens
+// CORREÇÃO: Quatro `..` para garantir que o caminho chegue ao `uploads` na raiz do projeto
 const uploadDir = path_1.default.join(__dirname, "../../../uploads");
 // Cria a pasta uploads se não existir
 if (!fs_1.default.existsSync(uploadDir)) {
@@ -31,11 +32,14 @@ const upload = (0, multer_1.default)({
     fileFilter: (req, file, cb) => {
         const allowedTypes = /jpeg|jpg|png|gif|webp/;
         const extname = allowedTypes.test(path_1.default.extname(file.originalname).toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
-        if (mimetype && extname) {
+        const mimetypeIsAllowed = allowedTypes.test(file.mimetype);
+        if (extname && mimetypeIsAllowed) {
             return cb(null, true);
         }
         else {
+            // Adiciona logs detalhados para o console do Node (para ajudar no debug)
+            console.error(`[Multer Error] File rejected in pieces upload: ${file.originalname}`);
+            console.error(`[Multer Error] Extname passed: ${extname}. MimeType passed: ${mimetypeIsAllowed}. Received Mimetype: ${file.mimetype}`);
             cb(new Error("Apenas imagens são permitidas!"));
         }
     },
@@ -81,6 +85,7 @@ const createPiecesRoutes = (repositoryFactory) => {
             }
             // Gera URLs das imagens salvas
             const urls = files.map((file) => {
+                // A URL gerada está correta, pois o server.ts mapeia /uploads
                 return `http://localhost:3000/uploads/${file.filename}`;
             });
             return res.json({ urls });

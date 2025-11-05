@@ -1,9 +1,55 @@
 "use strict";
 // backend/src/api/routes/hero.route.ts
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createHeroRouter = void 0;
 const express_1 = require("express");
 const HeroService_1 = require("../../services/HeroService");
+// IMPORTAÇÕES DO MULTER E DE CAMINHOS
+const multer_1 = __importDefault(require("multer"));
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
+// ======================================================================
+// CONFIGURAÇÃO DO MULTER PARA UPLOAD DE IMAGENS
+// ======================================================================
+// O caminho resolve para a pasta `backend/uploads` (3x `..` a partir de /src/api/routes)
+const uploadDir = path_1.default.join(__dirname, "../../../uploads");
+// Cria a pasta uploads se não existir
+if (!fs_1.default.existsSync(uploadDir)) {
+    fs_1.default.mkdirSync(uploadDir, { recursive: true });
+}
+const storage = multer_1.default.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        cb(null, uniqueSuffix + path_1.default.extname(file.originalname));
+    },
+});
+const upload = (0, multer_1.default)({
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = /jpeg|jpg|png|gif|webp/;
+        const extname = allowedTypes.test(path_1.default.extname(file.originalname).toLowerCase());
+        const mimetypeIsAllowed = allowedTypes.test(file.mimetype);
+        if (extname && mimetypeIsAllowed) {
+            return cb(null, true);
+        }
+        else {
+            // Adiciona logs detalhados para o console do Node (para ajudar no debug)
+            console.log(`[Multer Error] File rejected in hero upload: ${file.originalname}`);
+            console.log(`[Multer Error] Extname passed: ${extname}. MimeType passed: ${mimetypeIsAllowed}. Received Mimetype: ${file.mimetype}`);
+            cb(new Error("Apenas imagens são permitidas!"));
+        }
+    },
+});
+// ======================================================================
+// FIM DA CONFIGURAÇÃO DO MULTER
+// ======================================================================
 const createHeroRouter = (repositoryFactory) => {
     const router = (0, express_1.Router)();
     const heroSettingRepository = repositoryFactory.createHeroSettingRepository();
@@ -14,11 +60,11 @@ const createHeroRouter = (repositoryFactory) => {
             id: "hero", // ID padrão para o upsert
             is_active: true,
             interval_ms: 5000,
-            background_image_url: "",
-            title: "",
-            subtitle: "",
-            cta_text: "",
-            cta_link: "",
+            background_image_url: null,
+            title: null,
+            subtitle: null,
+            cta_text: null,
+            cta_link: null,
         },
         slides: [],
     };
@@ -29,7 +75,7 @@ const createHeroRouter = (repositoryFactory) => {
             if (!settings) {
                 return res.json(DEFAULT_HERO_SETTINGS);
             }
-            return res.json({ settings, slides });
+            return res.json({ settings, slides: slides });
         }
         catch (error) {
             console.error("Error fetching hero settings:", error);
@@ -63,7 +109,7 @@ const createHeroRouter = (repositoryFactory) => {
         }
     });
     // ======================================================================
-    // NOVAS ROTAS PARA GERENCIAMENTO DE SLIDES
+    // ROTAS PARA GERENCIAMENTO DE SLIDES
     // ======================================================================
     // POST /api/hero/slides - Adiciona um novo slide
     router.post("/slides", async (req, res) => {
@@ -77,7 +123,7 @@ const createHeroRouter = (repositoryFactory) => {
             const { settings, slides } = await heroService.getSettingsAndSlides();
             const currentSettings = settings || DEFAULT_HERO_SETTINGS.settings;
             const currentSlides = slides || [];
-            // Gera um ID temporário/único para o slide (necessário para o Front-end)
+            // Gera um ID único para o slide
             const newSlideId = Date.now().toString();
             const newSlide = {
                 id: newSlideId,
@@ -122,7 +168,9 @@ const createHeroRouter = (repositoryFactory) => {
             const currentSlides = slides || [];
             let slideFound = false;
             const updatedSlides = currentSlides.map((slide) => {
-                if (slide.id === slideId) {
+                // CORREÇÃO: Comparar IDs após garantir que slide.id seja string
+                const currentSlideIdString = String(slide.id);
+                if (currentSlideIdString === slideId) {
                     slideFound = true;
                     // Mescla os dados existentes com os novos
                     return { ...slide, ...updateData };
@@ -149,7 +197,7 @@ const createHeroRouter = (repositoryFactory) => {
     // DELETE /api/hero/slides/:id - Remove um slide existente
     router.delete("/slides/:id", async (req, res) => {
         try {
-            const slideId = req.params.id;
+            const slideId = req.params.id; // ID a ser deletado (string)
             const { settings, slides } = await heroService.getSettingsAndSlides();
             if (!settings) {
                 return res
@@ -158,9 +206,15 @@ const createHeroRouter = (repositoryFactory) => {
             }
             const currentSlides = slides || [];
             const initialLength = currentSlides.length;
-            // Filtra o slide a ser removido
-            const remainingSlides = currentSlides.filter((slide) => slide.id !== slideId);
+            // CORREÇÃO PRINCIPAL: Filtro robusto para deleção (garante que IDs sejam tratados como string)
+            const remainingSlides = currentSlides.filter((slide) => {
+                // Converte o ID do slide no DB para string de forma segura
+                const currentSlideIdString = String(slide.id);
+                // Retorna TRUE (manter o slide) se o ID não corresponder ao ID da requisição
+                return currentSlideIdString !== slideId;
+            });
             if (remainingSlides.length === initialLength) {
+                // Se nenhum slide foi removido, retorna 404
                 return res.status(404).json({ message: "Slide não encontrado." });
             }
             // Reordenar os slides restantes
@@ -180,6 +234,29 @@ const createHeroRouter = (repositoryFactory) => {
             return res
                 .status(500)
                 .json({ message: "Erro interno ao deletar slide." });
+        }
+    });
+    // Rota de Upload - AGORA IMPLEMENTADA E FUNCIONAL
+    router.post("/upload", upload.single("image"), // O Frontend envia a imagem com a chave 'image'
+    async (req, res) => {
+        try {
+            const file = req.file;
+            if (!file) {
+                return res
+                    .status(400)
+                    .json({ message: "Nenhum arquivo de imagem foi enviado." });
+            }
+            // Gera URL da imagem salva (apenas um arquivo)
+            const url = `http://localhost:3000/uploads/${file.filename}`;
+            // Retorna o URL permanente (necessário para o HeroManagement.tsx)
+            return res.json({ url });
+        }
+        catch (error) {
+            console.error("Error uploading hero image:", error);
+            // Garante que o erro do Multer (como limite de tamanho ou filtro) seja capturado
+            return res.status(500).json({
+                message: error.message || "Erro interno ao fazer upload da imagem do Hero.",
+            });
         }
     });
     return router;

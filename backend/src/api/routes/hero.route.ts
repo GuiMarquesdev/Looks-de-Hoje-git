@@ -8,6 +8,61 @@ import {
   HeroSlideData,
 } from "../../interfaces/IHeroSettingRepository";
 
+// IMPORTAÇÕES DO MULTER E DE CAMINHOS
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+// ======================================================================
+// CONFIGURAÇÃO DO MULTER PARA UPLOAD DE IMAGENS
+// ======================================================================
+
+// O caminho resolve para a pasta `backend/uploads` (3x `..` a partir de /src/api/routes)
+const uploadDir = path.join(__dirname, "../../../uploads");
+
+// Cria a pasta uploads se não existir
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+    const mimetypeIsAllowed = allowedTypes.test(file.mimetype);
+
+    if (extname && mimetypeIsAllowed) {
+      return cb(null, true);
+    } else {
+      // Adiciona logs detalhados para o console do Node (para ajudar no debug)
+      console.log(
+        `[Multer Error] File rejected in hero upload: ${file.originalname}`
+      );
+      console.log(
+        `[Multer Error] Extname passed: ${extname}. MimeType passed: ${mimetypeIsAllowed}. Received Mimetype: ${file.mimetype}`
+      );
+      cb(new Error("Apenas imagens são permitidas!"));
+    }
+  },
+});
+// ======================================================================
+// FIM DA CONFIGURAÇÃO DO MULTER
+// ======================================================================
+
 export const createHeroRouter = (repositoryFactory: IRepositoryFactory) => {
   const router = Router();
   const heroSettingRepository = repositoryFactory.createHeroSettingRepository();
@@ -241,13 +296,35 @@ export const createHeroRouter = (repositoryFactory: IRepositoryFactory) => {
     }
   });
 
-  // Rota de Upload
-  router.post("/upload", async (req: Request, res: Response) => {
-    // Implementação da rota de upload de imagem (Seu código original deve estar aqui)
-    return res
-      .status(501)
-      .json({ message: "Rota de upload não implementada neste arquivo." });
-  });
+  // Rota de Upload - AGORA IMPLEMENTADA E FUNCIONAL
+  router.post(
+    "/upload",
+    upload.single("image"), // O Frontend envia a imagem com a chave 'image'
+    async (req: Request, res: Response) => {
+      try {
+        const file = req.file as Express.Multer.File;
+
+        if (!file) {
+          return res
+            .status(400)
+            .json({ message: "Nenhum arquivo de imagem foi enviado." });
+        }
+
+        // Gera URL da imagem salva (apenas um arquivo)
+        const url = `http://localhost:3000/uploads/${file.filename}`;
+
+        // Retorna o URL permanente (necessário para o HeroManagement.tsx)
+        return res.json({ url });
+      } catch (error: any) {
+        console.error("Error uploading hero image:", error);
+        // Garante que o erro do Multer (como limite de tamanho ou filtro) seja capturado
+        return res.status(500).json({
+          message:
+            error.message || "Erro interno ao fazer upload da imagem do Hero.",
+        });
+      }
+    }
+  );
 
   return router;
 };
