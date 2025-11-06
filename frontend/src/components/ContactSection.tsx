@@ -9,28 +9,40 @@ const ContactSection = () => {
       title: "WhatsApp",
       info: "(71) 99277-1527",
       action: () => window.open("https://wa.me/71992771527", "_blank"),
-      actionText: "Chamar no WhatsApp"
+      actionText: "Chamar no WhatsApp",
     },
     {
       icon: <Instagram className="w-6 h-6" />,
       title: "Instagram",
       info: "@looksdehojebrecho",
-      action: () => window.open("https://www.instagram.com/looksdehojebr", "_blank"),
-      actionText: "Seguir no Instagram"
+      action: () =>
+        window.open("https://www.instagram.com/looksdehojebr", "_blank"),
+      actionText: "Seguir no Instagram",
     },
     {
       icon: <Mail className="w-6 h-6" />,
       title: "E-mail",
       info: "lookdehojebrecho@gmail.com",
       action: () => window.open("mailto:lookdehojebrecho@gmail.com", "_blank"),
-      actionText: "Enviar E-mail"
-    }
+      actionText: "Enviar E-mail",
+    },
   ];
 
   const workingHours = [
     { day: "Segunda, Quarta e Sexta", hours: "12:00 - 18:00" },
-    { day: "Atendimento", hours: "Somente com agendamento" }
+    { day: "Atendimento", hours: "Somente com agendamento" },
   ];
+
+  // Endereço completo para o link de pesquisa
+  const fullAddress =
+    "Av. Antônio Carlos Magalhães, 2501 - Brotas, Salvador - BA, 40280-901";
+  const mapsSearchUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    fullAddress
+  )}`;
+
+  // Link de incorporação do Google Maps para o iframe (para o endereço aproximado)
+  const mapsEmbedSrc =
+    "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3888.0016462723046!2d-38.4816913!3d-12.9696316!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x7160352e8508e7b%3A0x6e26715b741f2216!2sAv.%20Ant%C3%B4nio%20Carlos%20Magalh%C3%A3es%2C%202501%20-%20Brotas%2C%20Salvador%20-%20BA%2C%2040280-901%2C%20Brasil!5e0!3m2!1spt-BR!2sus!4v1700683200000!5m2!1spt-BR!2sus";
 
   return (
     <section id="contato" className="py-20 bg-secondary/30">
@@ -41,7 +53,8 @@ const ContactSection = () => {
             Contato & Localização
           </h2>
           <p className="font-montserrat text-lg text-muted-foreground max-w-2xl mx-auto">
-            Entre em contato conosco ou visite nossa loja física. Estamos prontas para ajudar você a encontrar o look perfeito.
+            Entre em contato conosco ou visite nossa loja física. Estamos
+            prontas para ajudar você a encontrar o look perfeito.
           </p>
         </div>
 
@@ -87,7 +100,10 @@ const ContactSection = () => {
               </div>
               <div className="space-y-3">
                 {workingHours.map((schedule, index) => (
-                  <div key={index} className="flex justify-between items-center">
+                  <div
+                    key={index}
+                    className="flex justify-between items-center"
+                  >
                     <span className="font-montserrat text-muted-foreground">
                       {schedule.day}
                     </span>
@@ -111,38 +127,35 @@ const ContactSection = () => {
                     Nossa Loja
                   </h3>
                   <address className="font-montserrat text-muted-foreground not-italic leading-relaxed">
-                    Av. Antônio Carlos Magalhães, 2501 - Brotas<br />
+                    Av. Antônio Carlos Magalhães, 2501 - Brotas
+                    <br />
                     Salvador - BA, 40280-901
                   </address>
                 </div>
               </div>
               <Button
                 className="w-full bg-gradient-gold hover:bg-primary-dark text-primary-foreground font-montserrat font-semibold py-3 rounded-full shadow-gold transition-all duration-300"
-                onClick={() => window.open("https://maps.google.com/?q=Av.+Antônio+Carlos+Magalhães+2501+Brotas+Salvador+BA", "_blank")}
+                // Link de pesquisa corrigido
+                onClick={() => window.open(mapsSearchUrl, "_blank")}
               >
                 <MapPin className="w-4 h-4 mr-2" />
                 Ver no Google Maps
               </Button>
             </div>
 
-            {/* Map Placeholder */}
+            {/* MAPA INTERATIVO CORRIGIDO (Embed) */}
             <div className="luxury-card overflow-hidden h-80">
-              <div className="w-full h-full bg-gradient-to-br from-muted to-muted-foreground/20 flex items-center justify-center relative">
-                <div className="text-center">
-                  <MapPin className="w-12 h-12 text-primary mx-auto mb-4" />
-                  <h3 className="font-playfair text-lg font-semibold text-foreground mb-2">
-                    Localização
-                  </h3>
-                  <p className="font-montserrat text-sm text-muted-foreground">
-                    Brotas, Salvador - BA
-                  </p>
-                </div>
-                
-                {/* Decorative elements */}
-                <div className="absolute top-4 left-4 w-8 h-8 border-2 border-primary/30 rounded-full animate-pulse" />
-                <div className="absolute bottom-6 right-6 w-6 h-6 border-2 border-primary/50 rounded-full animate-pulse delay-300" />
-                <div className="absolute top-1/3 right-8 w-4 h-4 border-2 border-primary/40 rounded-full animate-pulse delay-700" />
-              </div>
+              <iframe
+                src={mapsEmbedSrc}
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                // allowFullScreen no formato correto (camelCase)
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title="Localização da Loja"
+              ></iframe>
             </div>
           </div>
         </div>
@@ -154,9 +167,10 @@ const ContactSection = () => {
               Pronta para alugar seu próximo look?
             </h3>
             <p className="font-montserrat text-muted-foreground mb-6">
-              Entre em contato conosco agora mesmo e descubra como é fácil alugar roupas incríveis para suas ocasiões especiais.
+              Entre em contato conosco agora mesmo e descubra como é fácil
+              alugar roupas incríveis para suas ocasiões especiais.
             </p>
-            <ContactChannels 
+            <ContactChannels
               message="Olá! Gostaria de alugar uma roupa para uma ocasião especial."
               size="lg"
             />
