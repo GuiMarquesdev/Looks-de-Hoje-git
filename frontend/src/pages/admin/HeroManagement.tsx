@@ -504,7 +504,8 @@ const HeroManagement = () => {
                               variant="ghost"
                               size="sm"
                               title="Editar Slide"
-                              className="text-primary hover:text-primary/80"
+                              // CORREÇÃO: Icone preto e estático no hover
+                              className="text-black hover:text-black"
                               onClick={(e) => {
                                 e.stopPropagation(); // Evita que o clique se propague para a seleção
                                 setSelectedSlide(slide);

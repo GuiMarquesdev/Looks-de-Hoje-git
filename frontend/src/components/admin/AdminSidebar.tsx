@@ -102,7 +102,8 @@ const AdminSidebar = () => {
         <Button
           onClick={handleHome}
           variant="ghost"
-          className="w-full justify-start gap-3 text-muted-foreground hover:text-primary font-montserrat"
+          // CORREÇÃO: Mudar a cor inicial para text-foreground e manter text-foreground no hover
+          className="w-full justify-start gap-3 text-foreground hover:text-foreground font-montserrat"
         >
           <LogOut className="w-4 h-4" />
           Voltar para a Loja
