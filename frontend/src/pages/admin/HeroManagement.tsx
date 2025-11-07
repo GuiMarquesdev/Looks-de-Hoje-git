@@ -8,7 +8,6 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Loader2,
-  Settings,
   Edit,
   Plus,
   RotateCcw,
@@ -16,6 +15,8 @@ import {
   X,
   GripVertical,
   Upload,
+  ChevronUp, // NOVO: Ícone para mover para cima
+  ChevronDown, // NOVO: Ícone para mover para baixo
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -85,6 +86,23 @@ const slideSchema = z.object({
   image_fit: z.enum(["cover", "contain", "fill"]).optional(),
 });
 
+// Função utilitária para reordenar arrays e recalcular a propriedade 'order'
+const reorder = <T extends { order: number; id?: string | number }>(
+  list: T[],
+  startIndex: number,
+  endIndex: number
+): T[] => {
+  const result = Array.from(list);
+  const [removed] = result.splice(startIndex, 1);
+  result.splice(endIndex, 0, removed);
+
+  // Recalcula a propriedade 'order' para cada item na nova lista
+  return result.map((item, index) => ({
+    ...item,
+    order: index + 1,
+  })) as T[];
+};
+
 const HeroManagement = () => {
   const [heroData, setHeroData] = useState<HeroData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -143,7 +161,7 @@ const HeroManagement = () => {
     }
   };
 
-  // NOVO: Função auxiliar para salvar o slide no DB
+  // Função auxiliar para salvar o slide no DB
   const saveSlideToDB = async (slideData: HeroSlide) => {
     // 1. Prepara os dados para o PUT (remove campos que podem ser temporários)
     const payload = { ...slideData };
@@ -166,6 +184,70 @@ const HeroManagement = () => {
       console.error("Erro ao salvar slide:", error);
       throw new Error("Erro ao salvar alterações no servidor.");
     }
+  };
+
+  // NOVO: Função para persistir a nova ordem dos slides no DB (REUSADA DA TENTATIVA D&D)
+  const updateSlidesOrder = async (newSlides: HeroSlide[]) => {
+    if (!heroData) return;
+
+    // Remove IDs temporários para o payload de envio
+    const payloadSlides = newSlides.map((slide) => {
+      const isTempId = slide.id && String(slide.id).startsWith("temp-");
+      return {
+        ...slide,
+        id: isTempId ? undefined : slide.id, // Remove temp ID se existir
+      };
+    });
+
+    try {
+      const updatePayload = {
+        ...heroData.settings,
+        slides: payloadSlides, // O array já contém os novos 'order' values
+      };
+
+      // Chama o endpoint principal PUT /api/hero para salvar todas as configurações e slides
+      const response = await fetch(`${API_URL}/hero`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatePayload),
+      });
+
+      if (!response.ok)
+        throw new Error("Falha ao salvar a nova ordem dos slides.");
+
+      await fetchHeroData(); // Recarrega os dados do servidor
+      toast.success("Ordem dos slides salva com sucesso!");
+    } catch (error) {
+      toast.error("Erro ao salvar a ordem dos slides.");
+      console.error("Error updating slide order:", error);
+      await fetchHeroData(); // Reverte o estado para o último estado salvo em caso de erro
+    }
+  };
+
+  // NOVO: Função para mover um slide para cima ou para baixo com botões
+  const moveSlide = (currentIndex: number, direction: "up" | "down") => {
+    if (!heroData) return;
+
+    const sortedSlides = heroData.slides.sort((a, b) => a.order - b.order);
+    const targetIndex =
+      direction === "up" ? currentIndex - 1 : currentIndex + 1;
+
+    // Verifica limites
+    if (targetIndex < 0 || targetIndex >= sortedSlides.length) {
+      return;
+    }
+
+    // Usa a função reorder
+    const newSlides = reorder(sortedSlides, currentIndex, targetIndex);
+
+    // 1. Atualiza o estado local imediatamente para feedback visual
+    setHeroData({
+      ...heroData,
+      slides: newSlides,
+    });
+
+    // 2. Persiste a nova ordem no backend
+    updateSlidesOrder(newSlides);
   };
 
   // Função para lidar com o upload e o erro blob
@@ -313,28 +395,9 @@ const HeroManagement = () => {
     if (!heroData) return;
 
     try {
-      const currentSlides = heroData.slides || [];
-      const remainingSlides = currentSlides.filter((slide) => slide.id !== id);
-
-      const reorderedSlides = remainingSlides.map((slide, index) => {
-        const isTempId = slide.id && String(slide.id).startsWith("temp-");
-
-        return {
-          ...slide,
-          id: isTempId ? undefined : slide.id,
-          order: index + 1,
-        };
-      });
-
-      const updatePayload = {
-        ...heroData.settings,
-        slides: reorderedSlides,
-      };
-
-      const response = await fetch(`${API_URL}/hero`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatePayload),
+      // O backend já faz a deleção e reordenação dos índices
+      const response = await fetch(`${API_URL}/hero/slides/${id}`, {
+        method: "DELETE",
       });
 
       if (!response.ok) throw new Error("Falha ao remover slide no servidor.");
@@ -377,12 +440,13 @@ const HeroManagement = () => {
     if (!heroData) return;
 
     try {
-      const response = await fetch(`${API_URL}/hero/settings`, {
+      const response = await fetch(`${API_URL}/hero`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...heroData.settings,
           is_active,
+          slides: heroData.slides,
         }),
       });
 
@@ -449,71 +513,103 @@ const HeroManagement = () => {
                 <div className="space-y-3">
                   {heroData.slides
                     .sort((a, b) => a.order - b.order)
-                    .map((slide, index) => (
-                      <div
-                        key={slide.id || index}
-                        className={`
-                          glass-card p-4 transition-all animate-fade-in
-                          ${
-                            selectedSlide?.id === slide.id
-                              ? "ring-2 ring-primary glow-primary"
-                              : "hover:border-primary/50"
-                          }
-                        `}
-                        onClick={() => {
-                          setSelectedSlide(slide);
-                        }}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          {" "}
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <GripVertical className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    .map((slide, index, array) => {
+                      const isFirst = index === 0;
+                      const isLast = index === array.length - 1;
 
-                            {/* Conteúdo do slide (Imagem + Título) */}
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              <div
-                                className="w-16 h-10 rounded bg-cover bg-center flex-shrink-0"
-                                style={{
-                                  backgroundImage: `url(${slide.image_url})`,
+                      return (
+                        <div
+                          key={slide.id || index}
+                          className={`
+                            glass-card p-4 transition-all animate-fade-in
+                            ${
+                              selectedSlide?.id === slide.id
+                                ? "ring-2 ring-primary glow-primary"
+                                : "hover:border-primary/50"
+                            }
+                          `}
+                          onClick={() => {
+                            setSelectedSlide(slide);
+                          }}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            {" "}
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              {/* Removida a simulação D&D. Agora GripVertical serve apenas como ícone visual. */}
+                              <GripVertical className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+
+                              {/* Conteúdo do slide (Imagem + Título) */}
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <div
+                                  className="w-16 h-10 rounded bg-cover bg-center flex-shrink-0"
+                                  style={{
+                                    backgroundImage: `url(${slide.image_url})`,
+                                  }}
+                                />
+                                <span className="text-sm font-medium truncate">
+                                  {slide.title || `Slide ${slide.order}`}
+                                </span>
+                              </div>
+                            </div>
+                            {/* Ações: Mover, Editar e Deletar */}
+                            <div className="flex gap-1 flex-shrink-0">
+                              {/* NOVO: Botões de Mover */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="Mover para cima"
+                                disabled={isFirst}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  moveSlide(index, "up");
                                 }}
-                              />
-                              <span className="text-sm font-medium truncate">
-                                {slide.title || `Slide ${slide.order}`}
-                              </span>
+                              >
+                                <ChevronUp className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="Mover para baixo"
+                                disabled={isLast}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  moveSlide(index, "down");
+                                }}
+                              >
+                                <ChevronDown className="w-4 h-4" />
+                              </Button>
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="Editar Slide"
+                                // CORREÇÃO: Icone preto e estático no hover
+                                className="text-black hover:text-black"
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Evita que o clique se propague para a seleção
+                                  setSelectedSlide(slide);
+                                  setEditDialogOpen(true); // Abre o modal de edição
+                                }}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="Remover Slide"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (slide.id) removeSlide(slide.id);
+                                }}
+                                className="text-red-500 hover:bg-red-500/10"
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
                             </div>
                           </div>
-                          {/* Ações: Editar e Deletar */}
-                          <div className="flex gap-1 flex-shrink-0">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              title="Editar Slide"
-                              // CORREÇÃO: Icone preto e estático no hover
-                              className="text-black hover:text-black"
-                              onClick={(e) => {
-                                e.stopPropagation(); // Evita que o clique se propague para a seleção
-                                setSelectedSlide(slide);
-                                setEditDialogOpen(true); // Abre o modal de edição
-                              }}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              title="Remover Slide"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (slide.id) removeSlide(slide.id);
-                              }}
-                              className="text-red-500 hover:bg-red-500/10"
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               </CardContent>
             </Card>
