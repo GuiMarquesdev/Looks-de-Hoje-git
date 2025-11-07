@@ -44,10 +44,36 @@ const defaultSlides: HeroSlide[] = [
   },
 ];
 
+// NOVO: Hook para detecção de tela móvel (breakpoint padrão 768px, comum para mobile/tablet)
+const useIsMobile = (breakpoint = 768) => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      // Determina se a largura da janela é menor que o breakpoint
+      setIsMobile(window.innerWidth < breakpoint);
+    };
+
+    if (typeof window !== "undefined") {
+      handleResize(); // Executa na montagem
+      window.addEventListener("resize", handleResize);
+    }
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("resize", handleResize);
+      }
+    };
+  }, [breakpoint]);
+
+  return isMobile;
+};
+
 const HeroSection = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [loading, setLoading] = useState(true);
+  const isMobile = useIsMobile(); // Usa o hook para detecção de mobile
 
   useEffect(() => {
     fetchHeroSettings();
@@ -126,52 +152,66 @@ const HeroSection = () => {
     <section id="inicio" className="relative h-screen overflow-hidden">
       {/* Carousel Container */}
       <div className="relative w-full h-full">
-        {slides.map((slide, index) => (
-          <div
-            key={index}
-            className={`absolute inset-0 transition-opacity duration-1000 ${
-              index === currentSlide ? "opacity-100" : "opacity-0"
-            }`}
-          >
-            {/* Background Image */}
+        {slides.map((slide, index) => {
+          // LÓGICA DE ESTILO MELHORADA E CONDICIONAL:
+          const positionX = slide.image_position_x ?? 50;
+          const positionY = slide.image_position_y ?? 50;
+          const zoomScale = (slide.image_zoom ?? 100) / 100; // Converte % para escala (e.g., 100% -> 1)
+
+          // 1. Aplica estilos condicionais com base no isMobile
+          const finalBackgroundPosition = isMobile
+            ? "center" // Resetar para o centro em mobile para enquadramento seguro
+            : `${positionX}% ${positionY}%`;
+
+          const finalTransform = isMobile
+            ? "scale(1)" // Resetar zoom em mobile para evitar cortes
+            : `scale(${zoomScale})`;
+
+          const finalBackgroundSize = slide.image_fit || "cover";
+
+          return (
             <div
-              className="absolute inset-0 bg-no-repeat"
-              style={{
-                backgroundImage: `url(${slide.image_url})`,
-                backgroundSize: slide.image_zoom
-                  ? `${slide.image_zoom}%`
-                  : slide.image_fit || "cover",
-                backgroundPosition:
-                  slide.image_position_x !== undefined &&
-                  slide.image_position_y !== undefined
-                    ? `${slide.image_position_x}% ${slide.image_position_y}%`
-                    : slide.image_position || "center",
-              }}
-            />
+              key={index}
+              className={`absolute inset-0 transition-opacity duration-1000 ${
+                index === currentSlide ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              {/* Background Image */}
+              <div
+                className="absolute inset-0 bg-no-repeat transition-transform duration-300"
+                style={{
+                  backgroundImage: `url(${slide.image_url})`,
+                  backgroundSize: finalBackgroundSize,
+                  backgroundPosition: finalBackgroundPosition,
+                  // CORREÇÃO CRÍTICA: Aplica o zoom via transform para correto enquadramento
+                  transform: finalTransform,
+                }}
+              />
 
-            {/* Overlay */}
-            <div className="absolute inset-0 hero-overlay" />
+              {/* Overlay */}
+              <div className="absolute inset-0 hero-overlay" />
 
-            {/* Content */}
-            <div className="relative z-10 h-full flex items-center justify-center text-center px-4 py-20 md:py-24">
-              <div className="max-w-4xl mx-auto animate-fade-in -mt-12 md:-mt-16">
-                <h1 className="font-playfair text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
-                  {slide.title}
-                </h1>
-                <p className="font-montserrat text-lg md:text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-                  {slide.subtitle}
-                </p>
-                <Button
-                  onClick={scrollToCollection}
-                  size="lg"
-                  className="bg-gradient-gold hover:bg-primary-dark text-primary-foreground font-montserrat font-semibold px-8 py-4 rounded-full shadow-gold transition-all duration-300 hover:-translate-y-1 text-lg"
-                >
-                  Veja Nossa Coleção
-                </Button>
+              {/* Content */}
+              <div className="relative z-10 h-full flex items-center justify-center text-center px-4 py-20 md:py-24">
+                <div className="max-w-4xl mx-auto animate-fade-in -mt-12 md:-mt-16">
+                  <h1 className="font-playfair text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
+                    {slide.title}
+                  </h1>
+                  <p className="font-montserrat text-lg md:text-xl text-white/90 mb-8 max-w-2xl mx-auto">
+                    {slide.subtitle}
+                  </p>
+                  <Button
+                    onClick={scrollToCollection}
+                    size="lg"
+                    className="bg-gradient-gold hover:bg-primary-dark text-primary-foreground font-montserrat font-semibold px-8 py-4 rounded-full shadow-gold transition-all duration-300 hover:-translate-y-1 text-lg"
+                  >
+                    Veja Nossa Coleção
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Navigation Arrows */}
