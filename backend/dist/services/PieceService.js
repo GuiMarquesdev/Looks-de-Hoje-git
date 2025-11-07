@@ -20,9 +20,15 @@ class PieceService {
         // Adicionar validações de negócio aqui, se necessário
         return this.pieceRepository.update(id, data);
     }
-    // 🚨 NOVO: Lógica do Service para alternar o status
-    async togglePieceStatus(id, currentStatus) {
-        const newStatus = currentStatus === "available" ? "rented" : "available";
+    // 🚨 CORREÇÃO: Lógica do Service alterada para simplesmente ATUALIZAR para o status fornecido.
+    // O frontend já envia o status final desejado. Removemos a lógica de alternância (toggle).
+    async togglePieceStatus(id, 
+    // O nome da variável alterado para 'desiredStatus' para maior clareza,
+    // embora o tipo de entrada da interface IPieceService.ts seja mantido.
+    desiredStatus) {
+        // Agora, o newStatus é simplesmente o que foi enviado pelo frontend.
+        const newStatus = desiredStatus;
+        // Chama o repositório para atualizar com o status FINAL desejado
         return this.pieceRepository.updateStatus(id, newStatus);
     }
     async deletePiece(id) {

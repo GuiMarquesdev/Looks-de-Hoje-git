@@ -2,6 +2,7 @@
 // backend/src/repositories/PrismaPieceRepository.ts
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PrismaPieceRepository = void 0;
+const client_1 = require("@prisma/client");
 class PrismaPieceRepository {
     constructor(prisma) {
         this.prisma = prisma;
@@ -77,26 +78,47 @@ class PrismaPieceRepository {
             updateData.category = { connect: { id: updateData.category_id } };
             delete updateData.category_id;
         }
-        return this.prisma.piece.update({
-            where: { id },
-            data: updateData,
-            include: {
-                category: true,
-            },
-        });
+        try {
+            return this.prisma.piece.update({
+                where: { id },
+                data: updateData,
+                include: {
+                    category: true,
+                },
+            });
+        }
+        catch (e) {
+            // Retorna null se a peça não for encontrada durante a atualização
+            if (e instanceof client_1.Prisma.PrismaClientKnownRequestError &&
+                e.code === "P2025") {
+                return null;
+            }
+            throw e;
+        }
     }
     async updateStatus(id, newStatus) {
-        const existingPiece = await this.prisma.piece.findUnique({ where: { id } });
-        if (!existingPiece) {
-            return null;
+        // 🛑 CORREÇÃO APLICADA
+        // Removemos o findUnique anterior e usamos um try/catch para garantir
+        // que o contrato de retorno 'null' em caso de peça não encontrada seja mantido,
+        // tornando a operação atômica e mais robusta.
+        try {
+            return this.prisma.piece.update({
+                where: { id },
+                data: { status: newStatus },
+                include: {
+                    category: true,
+                },
+            });
         }
-        return this.prisma.piece.update({
-            where: { id },
-            data: { status: newStatus },
-            include: {
-                category: true,
-            },
-        });
+        catch (e) {
+            // Se a peça não for encontrada para atualização, o Prisma lança um erro com código P2025
+            if (e instanceof client_1.Prisma.PrismaClientKnownRequestError &&
+                e.code === "P2025") {
+                return null;
+            }
+            // Relança outros erros (como erro de banco de dados)
+            throw e;
+        }
     }
     async delete(id) {
         await this.prisma.piece.delete({

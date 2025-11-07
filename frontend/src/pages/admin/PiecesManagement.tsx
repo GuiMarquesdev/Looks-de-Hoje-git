@@ -190,28 +190,67 @@ const PiecesManagement = () => {
     }
   };
 
+  // 🛑 CORREÇÃO NO FRONTEND: Adicionando validação de resposta para diagnosticar falha no backend
   const toggleStatus = async (piece: Piece) => {
     try {
       const newStatus = piece.status === "available" ? "rented" : "available";
       const response = await fetch(`${PIECES_URL}/${piece.id}/toggle-status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        // Envia o status FINAL desejado
         body: JSON.stringify({ status: newStatus }),
       });
 
+      // 1. Tenta ler o corpo da resposta (pode ser o objeto da peça ou um objeto de erro)
+      let responseBody: any;
+      try {
+        responseBody = await response.json();
+      } catch (e) {
+        // Se a resposta não for JSON, trata como erro genérico
+        if (!response.ok) {
+          throw new Error("Erro de servidor sem corpo de resposta JSON.");
+        }
+        // Se for OK, pode ser uma resposta vazia, o que é um erro de implementação do backend
+        responseBody = {
+          status: piece.status,
+          message: "Resposta vazia do servidor.",
+        };
+      }
+
+      // 2. Verifica o status HTTP
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Erro ao alterar status");
+        // Se o status HTTP não for OK (400, 500, etc.)
+        throw new Error(
+          responseBody.message || "Erro ao alterar status (Status não-OK)"
+        );
+      }
+
+      // 3. 🚨 NOVO CHECK: Confirma se a peça retornada tem o status esperado
+      if (responseBody.status !== newStatus) {
+        console.error(
+          "Status mismatch no Backend:",
+          responseBody.status,
+          "Esperado:",
+          newStatus
+        );
+        // Esta mensagem de erro indicará que o PROBLEMA está no REPOSITÓRIO do BACKEND
+        throw new Error(
+          "A atualização do status não foi confirmada pelo servidor. O backend retornou sucesso, mas o status da peça está incorreto. Verifique a implementação do repositório (ex: PrismaPieceRepository.ts)."
+        );
       }
 
       const statusText = newStatus === "available" ? "disponível" : "alugada";
       toast.success(`Peça marcada como ${statusText}`);
-      fetchPieces();
+      fetchPieces(); // Recarrega a lista
     } catch (error) {
       console.error("Error updating status:", error);
-      toast.error("Erro ao alterar status");
+      toast.error(
+        "Erro ao alterar status: " +
+          (error instanceof Error ? error.message : "Erro desconhecido.")
+      );
     }
   };
+  // FIM DA CORREÇÃO NO FRONTEND
 
   const deletePiece = async (piece: Piece) => {
     try {

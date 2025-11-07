@@ -207,15 +207,24 @@ export const createPiecesRoutes = (repositoryFactory: IRepositoryFactory) => {
       const id = req.params.id;
       const { status } = req.body;
 
-      const currentPiece = await pieceService.getPieceById(id);
-      if (!currentPiece) {
-        return res.status(404).json({ message: "Peça não encontrada." });
+      // Validação básica para garantir que o status é um dos permitidos
+      if (status !== "available" && status !== "rented") {
+        return res.status(400).json({
+          message: "Status inválido. Deve ser 'available' ou 'rented'.",
+        });
       }
 
+      // 🛑 CORREÇÃO: O service (PieceService.ts) foi modificado para simplesmente
+      // definir o status para o valor fornecido (status), em vez de alterná-lo.
+      // O frontend envia o status final desejado.
       const updatedPiece = await pieceService.togglePieceStatus(
         id,
         status as "available" | "rented"
       );
+
+      if (!updatedPiece) {
+        return res.status(404).json({ message: "Peça não encontrada." });
+      }
 
       return res.json(updatedPiece);
     } catch (error) {

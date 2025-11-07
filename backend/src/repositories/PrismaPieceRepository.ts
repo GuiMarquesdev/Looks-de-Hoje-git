@@ -98,31 +98,53 @@ export class PrismaPieceRepository implements IPieceRepository {
       delete updateData.category_id;
     }
 
-    return this.prisma.piece.update({
-      where: { id },
-      data: updateData as PieceUpdatePrismaInput,
-      include: {
-        category: true,
-      },
-    });
+    try {
+      return this.prisma.piece.update({
+        where: { id },
+        data: updateData as PieceUpdatePrismaInput,
+        include: {
+          category: true,
+        },
+      });
+    } catch (e) {
+      // Retorna null se a peça não for encontrada durante a atualização
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2025"
+      ) {
+        return null;
+      }
+      throw e;
+    }
   }
 
   async updateStatus(
     id: string,
     newStatus: "available" | "rented"
   ): Promise<Piece | null> {
-    const existingPiece = await this.prisma.piece.findUnique({ where: { id } });
-    if (!existingPiece) {
-      return null;
+    // 🛑 CORREÇÃO APLICADA
+    // Removemos o findUnique anterior e usamos um try/catch para garantir
+    // que o contrato de retorno 'null' em caso de peça não encontrada seja mantido,
+    // tornando a operação atômica e mais robusta.
+    try {
+      return this.prisma.piece.update({
+        where: { id },
+        data: { status: newStatus },
+        include: {
+          category: true,
+        },
+      });
+    } catch (e) {
+      // Se a peça não for encontrada para atualização, o Prisma lança um erro com código P2025
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2025"
+      ) {
+        return null;
+      }
+      // Relança outros erros (como erro de banco de dados)
+      throw e;
     }
-
-    return this.prisma.piece.update({
-      where: { id },
-      data: { status: newStatus },
-      include: {
-        category: true,
-      },
-    });
   }
 
   async delete(id: string): Promise<void> {
