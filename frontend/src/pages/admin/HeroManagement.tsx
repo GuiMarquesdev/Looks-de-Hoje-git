@@ -425,23 +425,7 @@ const HeroManagement = () => {
               Gerencie os slides da vitrine principal do seu site
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Ativo</span>
-              <Switch
-                checked={heroData.settings.is_active}
-                onCheckedChange={updateSettings}
-              />
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSettingsDialogOpen(true)}
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Configurações
-            </Button>
-          </div>
+          {/* O bloco que continha o switch "Ativo" e o botão "Configurações" foi removido. */}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

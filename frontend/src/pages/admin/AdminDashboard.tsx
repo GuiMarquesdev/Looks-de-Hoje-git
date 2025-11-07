@@ -198,47 +198,6 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
       </div>
-
-      {/* Quick Actions */}
-      <Card className="luxury-card">
-        <CardHeader>
-          <CardTitle className="font-playfair">Ações Rápidas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-montserrat">
-            <div
-              onClick={handleAddPiece}
-              className="p-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-            >
-              <Package className="w-8 h-8 text-primary mb-2" />
-              <h3 className="font-semibold">Adicionar Peça</h3>
-              <p className="text-sm text-muted-foreground">
-                Cadastre uma nova peça no catálogo
-              </p>
-            </div>
-            <div
-              onClick={handleChangeStatus}
-              className="p-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-            >
-              <CheckCircle className="w-8 h-8 text-green-600 mb-2" />
-              <h3 className="font-semibold">Alterar Status</h3>
-              <p className="text-sm text-muted-foreground">
-                Marque peças como disponível/alugada
-              </p>
-            </div>
-            <div
-              onClick={handleViewReports}
-              className="p-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-            >
-              <BarChart3 className="w-8 h-8 text-blue-600 mb-2" />
-              <h3 className="font-semibold">Ver Relatórios</h3>
-              <p className="text-sm text-muted-foreground">
-                Acompanhe o desempenho das peças
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };
