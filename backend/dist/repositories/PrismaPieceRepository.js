@@ -2,13 +2,15 @@
 // backend/src/repositories/PrismaPieceRepository.ts
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PrismaPieceRepository = void 0;
+// 🛑 CORREÇÃO: Renomeamos 'Piece' importado para 'PrismaPiece' e importamos 'Category' para criar nosso próprio tipo 'Piece' rico.
 const client_1 = require("@prisma/client");
 class PrismaPieceRepository {
     constructor(prisma) {
         this.prisma = prisma;
     }
+    // Métodos findAll e findById agora retornam o novo tipo Piece
     async findAll() {
-        return this.prisma.piece.findMany({
+        const pieces = await this.prisma.piece.findMany({
             include: {
                 category: true,
             },
@@ -16,45 +18,48 @@ class PrismaPieceRepository {
                 created_at: "desc",
             },
         });
+        return pieces; // O cast satisfaz o compilador, pois a estrutura está correta.
     }
     async findById(id) {
-        return this.prisma.piece.findUnique({
+        const piece = await this.prisma.piece.findUnique({
             where: { id },
             include: {
                 category: true,
             },
         });
+        return piece;
     }
     async create(data) {
+        // 🛑 CORREÇÃO: Usar o campo 'images' (JSON) e não 'image_urls' (string[])
         if (!data.name ||
             data.price === undefined ||
             !data.category_id ||
-            !data.image_urls ||
-            data.image_urls.length === 0) {
+            !data.images || // 🛑 CORREÇÃO: Verificar 'images' (array de objetos JSON)
+            data.images.length === 0) {
             throw new Error("Dados incompletos para criar a peça.");
         }
         const status = data.is_available ? "available" : "rented";
+        // Obtém a URL da primeira imagem para o campo image_url (string?)
+        const mainImageUrl = data.images.length > 0 ? data.images[0].url : null;
         const createPayload = {
             name: data.name,
             description: data.description,
             price: data.price,
             status: status,
             category: { connect: { id: data.category_id } },
-            image_url: data.image_urls.length > 0 ? data.image_urls[0] : null,
-            images: data.image_urls,
+            image_url: mainImageUrl, // Usa a primeira URL
+            images: data.images, // 🛑 CORREÇÃO: Passa o JSON completo de 'images'
+            measurements: data.measurements, // 🛑 CORREÇÃO: Adicionado 'measurements'
         };
-        return this.prisma.piece.create({
+        const newPiece = await this.prisma.piece.create({
             data: createPayload,
             include: {
                 category: true,
             },
         });
+        return newPiece;
     }
     async update(id, data) {
-        const existingPiece = await this.prisma.piece.findUnique({ where: { id } });
-        if (!existingPiece) {
-            return null;
-        }
         const updateData = {};
         for (const [key, value] of Object.entries(data)) {
             if (value !== undefined) {
@@ -66,11 +71,25 @@ class PrismaPieceRepository {
                     updateData.status = value ? "available" : "rented";
                     continue;
                 }
-                if (key === "image_urls" && Array.isArray(value)) {
-                    updateData.image_url = value.length > 0 ? value[0] : null;
-                    updateData.images = value;
+                // 🛑 CORREÇÃO: Tratar o campo 'images' (JSON)
+                if (key === "images" && Array.isArray(value)) {
+                    // Atualiza image_url com a primeira URL do novo array de imagens
+                    updateData.image_url =
+                        value.length > 0 ? value[0].url : null;
+                    updateData.images = value; // Salva o JSON completo
                     continue;
                 }
+                // 🛑 CORREÇÃO: Tratar o campo 'measurements' (JSON)
+                if (key === "measurements" && value !== null) {
+                    updateData.measurements = value;
+                    continue;
+                }
+                if (key === "category_id") {
+                    // A categoria é tratada abaixo
+                }
+                // Ignorar 'title' que não existe no modelo Piece, mas está no DTO
+                if (key === "title")
+                    continue;
                 updateData[key] = value;
             }
         }
@@ -79,13 +98,14 @@ class PrismaPieceRepository {
             delete updateData.category_id;
         }
         try {
-            return this.prisma.piece.update({
+            const updatedPiece = await this.prisma.piece.update({
                 where: { id },
                 data: updateData,
                 include: {
                     category: true,
                 },
             });
+            return updatedPiece;
         }
         catch (e) {
             // Retorna null se a peça não for encontrada durante a atualização
@@ -97,18 +117,15 @@ class PrismaPieceRepository {
         }
     }
     async updateStatus(id, newStatus) {
-        // 🛑 CORREÇÃO APLICADA
-        // Removemos o findUnique anterior e usamos um try/catch para garantir
-        // que o contrato de retorno 'null' em caso de peça não encontrada seja mantido,
-        // tornando a operação atômica e mais robusta.
         try {
-            return this.prisma.piece.update({
+            const piece = await this.prisma.piece.update({
                 where: { id },
                 data: { status: newStatus },
                 include: {
                     category: true,
                 },
             });
+            return piece;
         }
         catch (e) {
             // Se a peça não for encontrada para atualização, o Prisma lança um erro com código P2025

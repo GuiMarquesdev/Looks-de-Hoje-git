@@ -48,7 +48,7 @@ import {
   MoreHorizontal,
   Plus,
   Search,
-  Edit,
+  Edit, // 'Edit' não é mais necessário aqui se a função for removida, mas manter por agora não causa erro se não for usado.
   Trash2,
   ToggleLeft,
   ToggleRight,
@@ -883,13 +883,13 @@ const PiecesManagement = () => {
                         <DropdownMenuLabel className="font-montserrat">
                           Ações
                         </DropdownMenuLabel>
-                        <DropdownMenuItem
+                        {/* REMOVIDO: <DropdownMenuItem
                           onClick={() => openEditDialog(piece)}
                           className="font-montserrat"
                         >
                           <Edit className="mr-2 h-4 w-4" />
                           Editar
-                        </DropdownMenuItem>
+                        </DropdownMenuItem> */}
                         <DropdownMenuItem
                           onClick={() => toggleStatus(piece)}
                           className="font-montserrat"

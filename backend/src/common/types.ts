@@ -23,7 +23,11 @@ export interface CreatePieceDTO {
   price: number;
   is_available: boolean;
   category_id: string;
-  image_urls: string[];
+  // CORREÇÃO: Alterado de image_urls: string[] para images: any para aceitar o formato JSON
+  // com metadados de imagem e para corresponder ao campo 'images' do Prisma.
+  images: any;
+  // CORREÇÃO: Adicionado o campo 'measurements'
+  measurements?: any; // O campo 'measurements' é um JSON
 }
 
 // DTO para atualizar uma peça existente
@@ -34,7 +38,10 @@ export interface UpdatePieceDTO {
   price?: number;
   is_available?: boolean;
   category_id?: string;
-  image_urls?: string[];
+  // CORREÇÃO: Alterado de image_urls?: string[] para images?: any para aceitar o formato JSON
+  images?: any;
+  // CORREÇÃO: Adicionado o campo 'measurements'
+  measurements?: any; // O campo 'measurements' é um JSON
 }
 
 // DTO para a criação de Categoria

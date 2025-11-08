@@ -107,17 +107,19 @@ const createPiecesRoutes = (repositoryFactory) => {
                 price: incomingData.price ? Number(incomingData.price) : 100,
                 is_available: isAvailable,
                 category_id: incomingData.category_id,
-                // CORREÇÃO APLICADA: Adicionar filtro para remover undefined/null/"" antes de enviar ao Prisma
-                image_urls: (incomingData.images || [])
-                    .map((img) => img.url)
-                    .filter(Boolean), // Esta linha remove os valores falsy, como 'undefined'
+                // 🛑 CORREÇÃO 1: Passar o array completo de objetos de imagem (images)
+                // O campo 'images' no DTO corresponde ao campo JSON do Prisma.
+                images: incomingData.images || [],
                 description: incomingData.description,
-                title: "",
+                // 🛑 CORREÇÃO 2: Adicionar o campo 'measurements' para salvar as medidas.
+                measurements: incomingData.measurements || null,
+                title: "", // Mantido para compatibilidade com o DTO
             };
             if (!data.name ||
                 !data.price ||
                 !data.category_id ||
-                data.image_urls.length === 0) {
+                data.images.length === 0 // Verificação de imagens corrigida para usar 'data.images.length'
+            ) {
                 throw new Error("Dados incompletos para criar a peça.");
             }
             const newPiece = await pieceService.createPiece(data);
@@ -145,14 +147,21 @@ const createPiecesRoutes = (repositoryFactory) => {
                     ? incomingData.status === "available"
                     : undefined,
                 category_id: incomingData.category_id,
-                // CORREÇÃO APLICADA: Adicionar filtro para remover undefined/null/"" antes de enviar ao Prisma
-                image_urls: (incomingData.images || [])
-                    .map((img) => img.url)
-                    .filter(Boolean), // .filter(Boolean) remove todos os valores falsy (incluindo undefined)
+                // 🛑 CORREÇÃO 1: Passar o array completo de objetos de imagem (images)
+                images: incomingData.images,
                 description: incomingData.description,
+                // 🛑 CORREÇÃO 2: Adicionar o campo 'measurements' para atualizar as medidas.
+                measurements: incomingData.measurements,
             };
-            Object.keys(updateData).forEach((key) => updateData[key] === undefined &&
-                delete updateData[key]);
+            // Remove chaves com valor 'undefined' do objeto de atualização
+            Object.keys(updateData).forEach((key) => {
+                if (updateData[key] === undefined) {
+                    delete updateData[key];
+                }
+            });
+            // Remove o 'title' do objeto de atualização (se houver, por questões de tipagem)
+            if ("title" in updateData)
+                delete updateData.title;
             const updatedPiece = await pieceService.updatePiece(id, updateData);
             if (!updatedPiece) {
                 return res.status(404).json({ message: "Peça não encontrada." });

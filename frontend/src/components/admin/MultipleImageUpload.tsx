@@ -4,6 +4,7 @@ import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, X } from "lucide-react";
 import { toast } from "sonner";
+import { API_URL } from "@/config/api";
 
 interface ProductImage {
   id?: string;
@@ -26,6 +27,40 @@ interface MultipleImageUploadProps {
   onChange: (images: ProductImage[]) => void;
   maxImages?: number;
 }
+
+// =========================================================================
+// CORREÇÃO FINAL: Limpeza de String Agressiva
+// Garante que espaços e caracteres de controle invisíveis sejam removidos.
+// =========================================================================
+
+const BASE_SERVER_URL = API_URL.replace("/api", "");
+
+const getDisplayUrl = (url?: string): string | undefined => {
+  // Converte para string e limpa espaços em branco e caracteres invisíveis
+  const cleanedUrl = String(url || "").trim();
+
+  if (!cleanedUrl) {
+    return undefined;
+  }
+
+  // Se a string limpa começar com http/https ou blob, ela é absoluta (o que seu debug confirmou)
+  if (
+    cleanedUrl.startsWith("http") ||
+    cleanedUrl.startsWith("https") ||
+    cleanedUrl.startsWith("blob:")
+  ) {
+    return cleanedUrl;
+  }
+
+  // Se for um caminho relativo, constrói a URL completa
+  const relativePath = cleanedUrl
+    .replace(/^(uploads\/)/, "")
+    .replace(/^(\/)/, "");
+  return `${BASE_SERVER_URL}/uploads/${relativePath}`;
+};
+// =========================================================================
+// FIM CORREÇÃO
+// =========================================================================
 
 const MultipleImageUpload: React.FC<MultipleImageUploadProps> = ({
   images = [],
@@ -95,41 +130,54 @@ const MultipleImageUpload: React.FC<MultipleImageUploadProps> = ({
 
       {images.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {images.map((image, index) => (
-            <div
-              key={`${image.image_url}-${index}`}
-              className="relative group bg-muted rounded-lg overflow-hidden aspect-square"
-            >
-              <img
-                src={image.image_url}
-                alt={`Imagem ${index + 1}`}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  console.error("Erro ao carregar imagem:", image.image_url);
-                  e.currentTarget.src =
-                    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23ddd' width='200' height='200'/%3E%3Ctext fill='%23999' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3EErro%3C/text%3E%3C/svg%3E";
-                }}
-              />
+          {images.map((image, index) => {
+            const displayUrl = getDisplayUrl(image.image_url); // Usa a função de display
 
-              <button
-                type="button"
-                onClick={() => handleRemoveImage(index)}
-                className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+            return (
+              <div
+                key={`${image.image_url}-${index}`}
+                className="relative group bg-muted rounded-lg overflow-hidden aspect-square"
               >
-                <X className="w-4 h-4" />
-              </button>
+                {displayUrl ? (
+                  <img
+                    src={displayUrl}
+                    alt={`Imagem ${index + 1}`}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      console.error(
+                        "Erro ao carregar imagem:",
+                        image.image_url
+                      );
+                      e.currentTarget.src =
+                        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23ddd' width='200' height='200'/%3E%3Ctext fill='%23999' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3EErro%3C/text%3E%3C/svg%3E";
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500 text-sm">
+                    URL Inválida
+                  </div>
+                )}
 
-              <div className="absolute top-2 left-2 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-medium z-10">
-                {index + 1}
-              </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveImage(index)}
+                  className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                >
+                  <X className="w-4 h-4" />
+                </button>
 
-              {image.isNew && (
-                <div className="absolute bottom-2 left-2 bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium z-10">
-                  Nova
+                <div className="absolute top-2 left-2 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-medium z-10">
+                  {index + 1}
                 </div>
-              )}
-            </div>
-          ))}
+
+                {image.isNew && (
+                  <div className="absolute bottom-2 left-2 bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium z-10">
+                    Nova
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

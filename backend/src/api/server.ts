@@ -1,5 +1,6 @@
 // backend/src/api/server.ts
 
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { PrismaClient } from "@prisma/client";
@@ -8,7 +9,7 @@ import { createAdminRoutes } from "./routes/admin.route";
 import { createPiecesRoutes } from "./routes/pieces.route";
 import { createHeroRouter } from "./routes/hero.route";
 import { createCategoryRoutes } from "./routes/categories.route";
-import path from "path"; // IMPORT NECESSÁRIO
+import path from "path";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,32 +17,38 @@ const PORT = process.env.PORT || 3000;
 const prisma = new PrismaClient();
 const repositoryFactory = new PrismaRepositoryFactory(prisma);
 
+// Configurações do Middleware
 app.use(cors());
 app.use(express.json());
 
-// INÍCIO DO BLOCO DE DEBUG E CONFIGURAÇÃO DE ARQUIVOS ESTÁTICOS
-const uploadsPath = path.join(__dirname, "../..", "uploads");
-// ESTA LINHA MOSTRARÁ NO SEU TERMINAL O CAMINHO ABSOLUTO
-console.log(`[DEBUG] Servindo arquivos estáticos de: ${uploadsPath}`);
+// =========================================================================
+// CAMINHO CORRETO CONFIRMADO PELO LOG: '../..'
+// =========================================================================
+const UPLOADS_PATH = path.join(__dirname, "../..", "uploads");
+console.log(`🚀 [DEBUG UPLOADS] Servindo arquivos de: ${UPLOADS_PATH}`); // Mantém o log para referência
 
-// SERVE A PASTA UPLOADS E A TORNA ACESSÍVEL VIA URL /uploads
-// O caminho resolve para a pasta `backend/uploads`
-app.use("/uploads", express.static(uploadsPath));
+app.use("/uploads", express.static(UPLOADS_PATH));
+// =========================================================================
+// FIM CAMINHO CORRETO
+// =========================================================================
 
 const adminRouter = createAdminRoutes(repositoryFactory);
 const piecesRouter = createPiecesRoutes(repositoryFactory);
 const heroRouter = createHeroRouter(repositoryFactory);
 const categoryRouter = createCategoryRoutes(repositoryFactory); // INICIALIZAÇÃO
 
+// Conexão das Rotas da API
 app.use("/api/admin", adminRouter);
 app.use("/api/pieces", piecesRouter);
 app.use("/api/hero", heroRouter);
 app.use("/api/categories", categoryRouter); // CONEXÃO DA ROTA
 
+// Rota de Teste Simples
 app.get("/api", (req, res) => {
   res.json({ message: "API Look de Hoje está online!" });
 });
 
+// Tratamento de Erros
 app.use(
   (
     err: Error,
@@ -60,14 +67,8 @@ const server = app.listen(PORT, () => {
 
 // Tratamento de Encerramento (mantido)
 process.on("SIGTERM", () => {
-  server.close(async () => {
-    await prisma.$disconnect();
-    process.exit(0);
-  });
-});
-process.on("SIGINT", () => {
-  server.close(async () => {
-    await prisma.$disconnect();
-    process.exit(0);
+  console.log("SIGTERM signal received: closing HTTP server");
+  server.close(() => {
+    console.log("HTTP server closed");
   });
 });
