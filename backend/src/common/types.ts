@@ -20,7 +20,7 @@ export interface CreatePieceDTO {
   title: string;
   name: string;
   description?: string;
-  price: number;
+  price: number; // Campo Price
   is_available: boolean;
   category_id: string;
   // CORREÇÃO: Alterado de image_urls: string[] para images: any para aceitar o formato JSON
@@ -35,7 +35,7 @@ export interface UpdatePieceDTO {
   title?: string;
   name?: string;
   description?: string;
-  price?: number;
+  price?: number; // Campo Price
   is_available?: boolean;
   category_id?: string;
   // CORREÇÃO: Alterado de image_urls?: string[] para images?: any para aceitar o formato JSON

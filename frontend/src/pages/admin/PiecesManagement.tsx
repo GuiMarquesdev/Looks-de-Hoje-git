@@ -48,7 +48,7 @@ import {
   MoreHorizontal,
   Plus,
   Search,
-  Edit, // 'Edit' não é mais necessário aqui se a função for removida, mas manter por agora não causa erro se não for usado.
+  Edit,
   Trash2,
   ToggleLeft,
   ToggleRight,
@@ -84,6 +84,7 @@ interface Piece {
   image_zoom?: number;
   description?: string;
   measurements?: Record<string, string>;
+  price?: number; // Campo de preço, tipo number para a API
   created_at: string;
   updated_at: string;
 }
@@ -93,7 +94,7 @@ interface Category {
   name: string;
 }
 
-// Schema de validação (ajustado para aceitar 'file' temporário do frontend)
+// Schema de validação (AGORA ACEITANDO STRING PARA PRICE)
 const pieceSchema = z.object({
   name: z
     .string()
@@ -111,7 +112,21 @@ const pieceSchema = z.object({
       }
       return val;
     }),
-  // Adicionamos um esquema flexível para validar apenas o que é necessário
+  // CORREÇÃO DE TIPAGEM: Recebe como string, valida o formato, e a conversão final é feita no onSubmit
+  price: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (val === undefined || val === "") return true;
+        // Permite números, vírgula/ponto para decimal, e ignora espaços.
+        return /^\s*\d*([,\.]\d{1,2})?\s*$/.test(val.trim());
+      },
+      {
+        message:
+          "Formato de preço inválido (use apenas números, vírgula ou ponto).",
+      }
+    ),
   images: z
     .array(
       z.object({
@@ -154,6 +169,7 @@ const PiecesManagement = () => {
         comprimento: "",
         tamanho: "",
       },
+      price: "", // Valor inicial como string vazia para o input
       images: [],
     },
   });
@@ -361,7 +377,6 @@ const PiecesManagement = () => {
       setUploading(true);
 
       // 1. UPLOAD DE IMAGENS E OBTENÇÃO DOS URLS PERMANENTES
-      // Se houver falha aqui, a exceção é lançada e o `catch` é chamado.
       const newPermanentUrls = await uploadNewImages(productImages);
 
       // 2. FILTRA IMAGENS EXISTENTES (apenas URLs permanentes que não são novos)
@@ -385,6 +400,13 @@ const PiecesManagement = () => {
         );
       }
 
+      // 5. CORREÇÃO DE TIPAGEM: Conversão de string (do input) para number (para a API)
+      const rawPrice = values.price;
+      const priceForApi =
+        rawPrice !== undefined && rawPrice !== ""
+          ? parseFloat(rawPrice.replace(",", ".")) // Limpa a string
+          : null; // Envia null se for vazio ou undefined
+
       const pieceData = {
         name: values.name,
         category_id: values.category_id,
@@ -396,6 +418,7 @@ const PiecesManagement = () => {
         image_zoom: imageZoom,
         description: values.description || null,
         measurements: values.measurements,
+        price: priceForApi, // <<-- ADICIONADO: Envia o preço convertido
       };
 
       let response: Response;
@@ -473,6 +496,7 @@ const PiecesManagement = () => {
         comprimento: "",
         tamanho: "",
       },
+      price: piece.price?.toString() || "", // <<-- CORRIGIDO: Converte o preço de número para string para o input
       images: pieceImages as any,
     });
     setIsDialogOpen(true);
@@ -496,6 +520,7 @@ const PiecesManagement = () => {
         comprimento: "",
         tamanho: "",
       },
+      price: "", // Valor inicial como string vazia
       images: [],
     });
     setIsDialogOpen(true);
@@ -637,6 +662,40 @@ const PiecesManagement = () => {
                           </SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="font-montserrat">
+                        Preço (R$)
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Ex: 150,00"
+                          {...field}
+                          value={
+                            field.value === undefined || field.value === null
+                              ? ""
+                              : field.value
+                          }
+                          onChange={(e) => {
+                            // Permite apenas números, vírgula e ponto (para decimal)
+                            const value = e.target.value.replace(
+                              /[^\d,\.]/g,
+                              ""
+                            );
+                            field.onChange(value);
+                          }}
+                          className="font-montserrat"
+                          type="text"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -883,13 +942,14 @@ const PiecesManagement = () => {
                         <DropdownMenuLabel className="font-montserrat">
                           Ações
                         </DropdownMenuLabel>
-                        {/* REMOVIDO: <DropdownMenuItem
+                        {/* Ação de editar removida: Adicionei esta funcionalidade no botão principal da linha */}
+                        <DropdownMenuItem
                           onClick={() => openEditDialog(piece)}
                           className="font-montserrat"
                         >
                           <Edit className="mr-2 h-4 w-4" />
                           Editar
-                        </DropdownMenuItem> */}
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => toggleStatus(piece)}
                           className="font-montserrat"

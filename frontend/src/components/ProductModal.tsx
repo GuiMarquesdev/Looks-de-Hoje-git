@@ -1,5 +1,3 @@
-// guimarquesdev/looks-de-hoje-git/Looks-de-Hoje-git-09219f1fd0a1688ed42e10d4ed53d02dea107fd6/frontend/src/components/ProductModal.tsx
-
 import React from "react";
 import {
   Dialog,
@@ -42,6 +40,8 @@ interface ModalComponentProps {
     status: "available" | "rented";
     description?: string;
     measurements?: any;
+    // CORREÇÃO: Adicionado o campo 'price'
+    price?: number;
   } | null;
   isOpen: boolean;
   onClose: () => void;
@@ -90,107 +90,138 @@ const ProductModal: React.FC<ModalComponentProps> = ({
         ]
       : [];
 
+  // Helper para formatar o preço em moeda BRL (Real Brasileiro)
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(price);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-playfair text-2xl text-foreground">
-            {product.name}
-          </DialogTitle>
+      <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden p-0 gap-0 bg-gradient-to-br from-background via-background to-muted/10">
+        {/* Header Section */}
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/30 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+          <div className="flex items-start justify-between gap-6">
+            <div className="space-y-2 flex-1">
+              <DialogTitle className="font-playfair text-3xl md:text-4xl font-bold text-foreground tracking-tight leading-tight">
+                {product.name}
+              </DialogTitle>
 
-          {/* Adicionado para acessibilidade */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {product.category?.name && (
+                  <span className="font-montserrat text-xs text-muted-foreground px-3 py-1.5 bg-muted/60 rounded-full border border-border/50 backdrop-blur-sm">
+                    {product.category.name}
+                  </span>
+                )}
+
+                <Badge
+                  variant={isAvailable ? "default" : "destructive"}
+                  className={`font-montserrat font-semibold shadow-md transition-all duration-300 hover:scale-105 ${
+                    isAvailable
+                      ? "bg-green-500 hover:bg-green-600 text-white border-green-600"
+                      : "bg-red-500 hover:bg-red-600 text-white border-red-600"
+                  }`}
+                >
+                  {isAvailable ? "✓ Disponível" : "✗ Alugado"}
+                </Badge>
+              </div>
+            </div>
+
+            {product.price !== undefined && product.price !== null && (
+              <div className="text-right bg-muted/30 rounded-xl px-4 py-3 border border-border/50">
+                <p className="text-xs text-muted-foreground font-montserrat mb-0.5 uppercase tracking-wide">
+                  Valor
+                </p>
+                <span className="font-playfair text-2xl md:text-3xl font-bold text-foreground block">
+                  {formatPrice(product.price)}
+                </span>
+              </div>
+            )}
+          </div>
+
           <DialogDescription className="sr-only">
             {product.description || `Detalhes da peça ${product.name}`}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Product Images Carousel */}
-          <div className="relative">
-            <ProductImageCarousel
-              images={mappedImagesForCarousel as any} // Mantido 'as any' para forçar a compilação por causa da anomalia de tipagem do bundler
-              productName={product.name}
-              imagePositionX={product.image_position_x}
-              imagePositionY={product.image_position_y}
-              imageZoom={product.image_zoom}
-            />
-
-            {/* Status Badge */}
-            <div className="absolute top-4 right-4 z-10">
-              <Badge
-                variant={isAvailable ? "default" : "destructive"}
-                className={`font-montserrat font-semibold ${
-                  isAvailable
-                    ? "bg-green-500 text-white"
-                    : "bg-red-500 text-white"
-                }`}
-              >
-                {isAvailable ? "Disponível" : "Alugado"}
-              </Badge>
-            </div>
-          </div>
-
-          {/* Product Info */}
-          <div className="space-y-4">
-            {/* Category */}
-            <div>
-              <span className="font-montserrat text-sm text-muted-foreground">
-                Categoria:{" "}
-                <span className="font-semibold">{product.category?.name}</span>
-              </span>
+        {/* Scrollable Content */}
+        <div className="overflow-y-auto max-h-[calc(95vh-140px)] custom-scrollbar">
+          <div className="px-6 py-6 space-y-6">
+            {/* Product Images Carousel */}
+            <div className="relative">
+              <ProductImageCarousel
+                images={mappedImagesForCarousel as any}
+                productName={product.name}
+                imagePositionX={product.image_position_x}
+                imagePositionY={product.image_position_y}
+                imageZoom={product.image_zoom}
+              />
             </div>
 
-            {/* Description */}
-            {product.description && (
-              <div>
-                <h4 className="font-montserrat font-semibold text-foreground mb-2">
-                  Descrição
-                </h4>
-                <p className="font-montserrat text-muted-foreground leading-relaxed">
-                  {product.description}
+            {/* Product Information Grid */}
+            <div className="grid gap-6">
+              {/* Description Section */}
+              {product.description && (
+                <div className="bg-gradient-to-br from-muted/20 to-muted/40 rounded-xl p-6 border border-border/50 backdrop-blur-sm transition-all duration-300 hover:shadow-md hover:border-primary/30">
+                  <h4 className="font-montserrat font-semibold text-foreground mb-3 flex items-center gap-2 text-lg">
+                    <span className="w-1.5 h-6 bg-primary rounded-full"></span>
+                    Descrição
+                  </h4>
+                  <p className="font-montserrat text-muted-foreground leading-relaxed">
+                    {product.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Measurements Section */}
+              {product.measurements &&
+                Object.keys(product.measurements).length > 0 && (
+                  <div className="bg-gradient-to-br from-muted/20 to-muted/40 rounded-xl p-6 border border-border/50 backdrop-blur-sm">
+                    <h4 className="font-montserrat font-semibold text-foreground mb-4 flex items-center gap-2 text-lg">
+                      <span className="w-1.5 h-6 bg-primary rounded-full"></span>
+                      Medidas
+                    </h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {Object.entries(product.measurements).map(
+                        ([key, value]) => (
+                          <div
+                            key={key}
+                            className="group relative bg-background/90 backdrop-blur-sm rounded-lg p-4 border border-border/50 hover:border-primary/60 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+                          >
+                            <div className="flex flex-col gap-1.5">
+                              <span className="font-montserrat font-medium capitalize text-xs text-muted-foreground tracking-wider">
+                                {key}
+                              </span>
+                              <span className="font-montserrat text-foreground font-bold text-lg">
+                                {value as string}
+                              </span>
+                            </div>
+                            <div className="absolute inset-0 bg-primary/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
+            </div>
+
+            {/* Contact Section */}
+            <div className="pt-6 border-t border-border/30">
+              <div className="text-center mb-5 bg-muted/30 rounded-xl p-4 border border-border/50">
+                <p className="font-montserrat text-muted-foreground font-medium">
+                  {isAvailable
+                    ? "🎉 Entre em contato para alugar esta peça🎉"
+                    : "🔔 Quer ser notificado quando estiver disponível?🔔"}
                 </p>
               </div>
-            )}
-
-            {/* Measurements */}
-            {product.measurements && (
-              <div>
-                <h4 className="font-montserrat font-semibold text-foreground mb-2">
-                  Medidas
-                </h4>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  {Object.entries(product.measurements).map(([key, value]) => (
-                    <div
-                      key={key}
-                      className="flex justify-between bg-muted rounded-lg p-3"
-                    >
-                      <span className="font-montserrat font-medium capitalize">
-                        {key}:
-                      </span>
-                      <span className="font-montserrat text-muted-foreground">
-                        {value as string}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Action Buttons - Contact Channels */}
-          <div className="pt-6 border-t">
-            <div className="text-center mb-4">
-              <p className="font-montserrat text-muted-foreground text-sm">
-                {isAvailable
-                  ? "Entre em contato para alugar:"
-                  : "Entre em contato para ser avisado:"}
-              </p>
+              <ContactChannels
+                productName={product.name}
+                message={getContactMessage()}
+                size="lg"
+              />
             </div>
-            <ContactChannels
-              productName={product.name}
-              message={getContactMessage()}
-              size="md"
-            />
           </div>
         </div>
       </DialogContent>
