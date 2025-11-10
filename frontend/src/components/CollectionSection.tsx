@@ -11,6 +11,9 @@ import whatsappIcon from "@/assets/whatsapp-icon.svg";
 // Importa a URL base da API
 const API_URL = "http://localhost:3000/api";
 
+// 🚨 NOVO: Define a constante para o limite inicial de exibição
+const INITIAL_DISPLAY_LIMIT = 6;
+
 interface Product {
   id: string;
   name: string;
@@ -51,10 +54,17 @@ const CollectionSection = () => {
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(
     null
   );
+  // 🚨 NOVO: Estado para controlar o limite de peças a serem exibidas
+  const [displayLimit, setDisplayLimit] = useState(INITIAL_DISPLAY_LIMIT);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // 🚨 NOVO: Reseta o limite de exibição quando a categoria ativa muda
+  useEffect(() => {
+    setDisplayLimit(INITIAL_DISPLAY_LIMIT);
+  }, [activeCategory]);
 
   const fetchData = async () => {
     try {
@@ -103,9 +113,19 @@ const CollectionSection = () => {
       ? products
       : products.filter((product) => product.category_id === activeCategory);
 
+  // 🚨 NOVO: Aplica o limite de exibição aos produtos filtrados
+  const displayedProducts = filteredProducts.slice(0, displayLimit);
+  const hasMoreProducts = filteredProducts.length > displayLimit;
+
   const openProductModal = (product: Product) => {
     setSelectedProduct(product);
     setIsModalOpen(true);
+  };
+
+  // 🚨 NOVO: Handler para aumentar o limite de exibição
+  const handleViewMore = () => {
+    // Aumenta o limite em mais 6 (INITIAL_DISPLAY_LIMIT) peças
+    setDisplayLimit((prevLimit) => prevLimit + INITIAL_DISPLAY_LIMIT);
   };
 
   // Os handlers de WhatsApp agora usam a constante `storeSettings`
@@ -202,8 +222,9 @@ const CollectionSection = () => {
 
           {/* Products Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto animate-fade-in">
-            {filteredProducts.length > 0 ? (
-              filteredProducts.map((product) => {
+            {/* 🚨 ALTERADO: Mapeia `displayedProducts` em vez de `filteredProducts` */}
+            {displayedProducts.length > 0 ? (
+              displayedProducts.map((product) => {
                 const isAvailable = product.status === "available";
                 return (
                   <div
@@ -342,11 +363,13 @@ const CollectionSection = () => {
           </div>
 
           {/* View More Button */}
-          {products.length > 6 && (
+          {/* 🚨 ALTERADO: Usa a nova condição `hasMoreProducts` e o handler `handleViewMore` */}
+          {hasMoreProducts && (
             <div className="text-center mt-12">
               <Button
                 variant="outline"
                 size="lg"
+                onClick={handleViewMore}
                 className="font-montserrat font-semibold px-8 py-3 rounded-full border-2 border-primary text-primary hover:bg-gradient-gold hover:text-primary-foreground hover:border-transparent transition-all duration-300"
               >
                 Ver Mais Peças
