@@ -6,6 +6,16 @@ import { Piece } from "@prisma/client";
 import { CreatePieceDTO, UpdatePieceDTO } from "../common/types";
 import { IPieceService } from "../interfaces/IPieceService";
 
+// Função auxiliar para validação da descrição
+function validateDescription(description: string | undefined): void {
+  const MAX_LENGTH = 350;
+  if (description && description.length > MAX_LENGTH) {
+    throw new Error(
+      `A descrição não pode ter mais de ${MAX_LENGTH} caracteres.`
+    );
+  }
+}
+
 export class PieceService implements IPieceService {
   constructor(private pieceRepository: IPieceRepository) {}
 
@@ -19,11 +29,13 @@ export class PieceService implements IPieceService {
 
   async createPiece(data: CreatePieceDTO): Promise<Piece> {
     // Adicionar validações de negócio aqui, se necessário
+    validateDescription(data.description); // <--- VALIDAÇÃO ADICIONADA AQUI
     return this.pieceRepository.create(data);
   }
 
   async updatePiece(id: string, data: UpdatePieceDTO): Promise<Piece | null> {
     // Adicionar validações de negócio aqui, se necessário
+    validateDescription(data.description); // <--- VALIDAÇÃO ADICIONADA AQUI
     return this.pieceRepository.update(id, data);
   }
 

@@ -2,6 +2,13 @@
 // backend/src/services/PieceService.ts
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PieceService = void 0;
+// Função auxiliar para validação da descrição
+function validateDescription(description) {
+    const MAX_LENGTH = 350;
+    if (description && description.length > MAX_LENGTH) {
+        throw new Error(`A descrição não pode ter mais de ${MAX_LENGTH} caracteres.`);
+    }
+}
 class PieceService {
     constructor(pieceRepository) {
         this.pieceRepository = pieceRepository;
@@ -14,10 +21,12 @@ class PieceService {
     }
     async createPiece(data) {
         // Adicionar validações de negócio aqui, se necessário
+        validateDescription(data.description); // <--- VALIDAÇÃO ADICIONADA AQUI
         return this.pieceRepository.create(data);
     }
     async updatePiece(id, data) {
         // Adicionar validações de negócio aqui, se necessário
+        validateDescription(data.description); // <--- VALIDAÇÃO ADICIONADA AQUI
         return this.pieceRepository.update(id, data);
     }
     // 🚨 CORREÇÃO: Lógica do Service alterada para simplesmente ATUALIZAR para o status fornecido.

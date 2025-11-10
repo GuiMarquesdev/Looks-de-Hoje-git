@@ -44,6 +44,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Textarea } from "@/components/ui/textarea"; // <-- NOVO IMPORT
 import {
   MoreHorizontal,
   Plus,
@@ -731,21 +732,31 @@ const PiecesManagement = () => {
                 <FormField
                   control={form.control}
                   name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-montserrat">
-                        Descrição
-                      </FormLabel>
-                      <FormControl>
-                        <textarea
-                          placeholder="Descrição da peça..."
-                          {...field}
-                          className="font-montserrat min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    // LÓGICA DE CONTAGEM DE CARACTERES
+                    const charCount = (field.value || "").length;
+
+                    return (
+                      <FormItem>
+                        <FormLabel className="font-montserrat">
+                          Descrição
+                        </FormLabel>
+                        <FormControl>
+                          {/* Usa o componente Textarea em vez da tag nativa, mantendo o min-height customizado */}
+                          <Textarea
+                            placeholder="Descrição da peça..."
+                            {...field}
+                            className="font-montserrat min-h-[100px]" // Usa a classe para altura mínima e fonte
+                          />
+                        </FormControl>
+                        {/* Indicador de Contagem de Caracteres */}
+                        <div className="flex justify-end text-xs text-muted-foreground font-montserrat mt-1">
+                          {charCount} caracteres
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
 
                 <FormField

@@ -30,7 +30,7 @@ model Piece {
   image_position_x Float?    @default(50) @map("image_position_x")
   image_position_y Float?    @default(50) @map("image_position_y")
   image_zoom       Float?    @default(100) @map("image_zoom")
-  description      String?
+  description      String?   @db.VarChar(350) // <--- ALTERAÇÃO ADICIONADA AQUI
   measurements     Json?
   price            Float     @map("price") 
   created_at       DateTime  @default(now()) @map("created_at")
@@ -68,12 +68,12 @@ model AdminCredentials {
 }
 
 model HeroSetting {
-  id                     String   @id @map("id")
-  slides                 Json? 
-  title                  String?  @db.VarChar(255)
-  subtitle               String?  @db.VarChar(255)
-  cta_text               String?  @db.VarChar(100)
-  cta_link               String?  @db.VarChar(255)
+  id                      String   @id @map("id")
+  slides                 Json?
+  title                  String? @db.VarChar(255)
+  subtitle               String? @db.VarChar(255)
+  cta_text               String? @db.VarChar(100)
+  cta_link               String? @db.VarChar(255)
   background_image_url   String?  @db.VarChar(255)
   created_at             DateTime @default(now()) @map("created_at")
   updated_at             DateTime @updatedAt @map("updated_at")
