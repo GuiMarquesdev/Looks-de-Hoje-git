@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth, AuthUser } from "../contexts/AuthContext"; // CAMINHO CORRIGIDO AQUI (contexts)
 import { useNavigate, Navigate } from "react-router-dom";
 import api from "../config/api";
 import { Input } from "../components/ui/input";
@@ -14,6 +14,12 @@ import {
 import { Label } from "../components/ui/label";
 import { useToast } from "../components/ui/use-toast";
 import LogoAdmin from "../assets/logo-admin.png"; // Verifique o caminho da sua logo
+
+// Define o formato esperado da resposta de sucesso do login do backend
+interface LoginResponseData {
+  token: string;
+  username: string;
+}
 
 const AdminLogin: React.FC = () => {
   const [username, setUsername] = useState("");
@@ -33,11 +39,18 @@ const AdminLogin: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Chama a nova rota de login do backend
-      const response = await api.post("/admin/login", { username, password });
+      // Chama a nova rota de login do backend, tipando a resposta
+      const response = await api.post<LoginResponseData>("/admin/login", {
+        username,
+        password,
+      });
 
       const { token, username: loggedInUsername } = response.data;
-      login(token, loggedInUsername); // Salva o token e o usuário no contexto
+
+      // Criar o objeto AuthUser, conforme esperado pela função login
+      const userData: AuthUser = { username: loggedInUsername };
+
+      login(token, userData); // Salva o token e o objeto de usuário no contexto
 
       toast({
         title: "Sucesso!",

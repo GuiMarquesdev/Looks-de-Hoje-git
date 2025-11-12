@@ -9,7 +9,8 @@ import React, {
 } from "react";
 
 // 1. Definição da Interface
-interface AuthUser {
+export interface AuthUser {
+  // Adicionado 'export'
   username: string;
   // Adicione outras propriedades do usuário aqui (ex: id, email)
 }
