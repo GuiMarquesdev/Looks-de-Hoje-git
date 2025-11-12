@@ -1,5 +1,11 @@
 // backend/src/common/types.ts
 
+// DTO para as informações de login do administrador (AdminLoginDTO)
+export interface AdminLoginDTO {
+  username: string;
+  password: string;
+}
+
 // DTO para as informações de configuração da loja
 export interface StoreSettingsDTO {
   store_name: string;
@@ -9,7 +15,7 @@ export interface StoreSettingsDTO {
   whatsapp_url?: string | null;
   email?: string | null;
 }
-
+// ... (restante do arquivo types.ts)
 // DTO para a alteração de senha
 export interface ChangePasswordDTO {
   current_password: string;

@@ -1,33 +1,55 @@
 // backend/src/services/AdminService.ts
 
-import { IAdminService } from "../interfaces/IAdminService";
+// ✅ CORREÇÃO: Importa IAdminLoginResult para usar no retorno
+import { IAdminService, IAdminLoginResult } from "../interfaces/IAdminService";
 import { AdminLoginDTO } from "../common/types";
 import { IAdminCredentialsRepository } from "../interfaces/IAdminCredentialsRepository";
 import { sign } from "jsonwebtoken";
-import { config } from "../config";
-import * as bcrypt from "bcrypt"; // Importa o bcrypt para comparação de hash
+// ✅ CORREÇÃO: Usa alias de caminho para o config
+import { config } from "@/config";
+// ✅ CORREÇÃO: Usa bcryptjs
+import * as bcryptjs from "bcryptjs";
+import { StoreSetting } from "@prisma/client";
 
 export class AdminService implements IAdminService {
   constructor(
     private readonly adminCredentialsRepository: IAdminCredentialsRepository
   ) {}
+  getStoreSettings(): Promise<StoreSetting | null> {
+    throw new Error("Method not implemented.");
+  }
+  updateStoreSettings(settings: StoreSetting): Promise<StoreSetting> {
+    throw new Error("Method not implemented.");
+  }
+  changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    throw new Error("Method not implemented.");
+  }
 
-  async login({ username, password }: AdminLoginDTO): Promise<string> {
+  // ✅ CORREÇÃO: Assinatura modificada para retornar Promise<IAdminLoginResult | null>
+  async login({
+    username,
+    password,
+  }: AdminLoginDTO): Promise<IAdminLoginResult | null> {
     // 1. Busca as credenciais de administrador pelo username/email fornecido
     const admin = await this.adminCredentialsRepository.findByUsername(
       username
     );
 
     // 2. Verifica se o administrador existe
+    // ✅ CORREÇÃO: Retorna null em caso de falha (conforme a nova assinatura)
     if (!admin) {
-      throw new Error("Invalid username or password"); // Retorna erro genérico por segurança
+      return null;
     }
 
     // 3. Compara a senha fornecida com o hash armazenado
-    const passwordMatch = await bcrypt.compare(password, admin.admin_password);
+    const passwordMatch = await bcryptjs.compare(
+      password,
+      admin.admin_password
+    );
 
     if (!passwordMatch) {
-      throw new Error("Invalid username or password"); // Retorna erro genérico
+      // ✅ CORREÇÃO: Retorna null em caso de falha (conforme a nova assinatura)
+      return null;
     }
 
     // 4. Se as credenciais estiverem corretas, gera o token JWT
@@ -35,6 +57,11 @@ export class AdminService implements IAdminService {
       expiresIn: "7d",
     });
 
-    return token;
+    // ✅ CORREÇÃO: Retorna o objeto IAdminLoginResult completo em caso de sucesso
+    return {
+      token,
+      username: admin.username,
+    };
   }
+  // (outros métodos do IAdminService precisam ser implementados aqui)
 }
