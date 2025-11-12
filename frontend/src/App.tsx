@@ -1,91 +1,48 @@
-// src/App.tsx
-
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import Admin from "./pages/Admin"; // Layout do Admin
 import AdminDashboard from "./pages/admin/AdminDashboard";
-import PiecesManagement from "./pages/admin/PiecesManagement";
 import CategoriesManagement from "./pages/admin/CategoriesManagement";
-import Settings from "./pages/admin/Settings";
+import PiecesManagement from "./pages/admin/PiecesManagement";
 import HeroManagement from "./pages/admin/HeroManagement";
-import AdminLayout from "./components/admin/AdminLayout";
+import Settings from "./pages/admin/Settings";
+import AdminNotFound from "./pages/Admin.NotFound";
+import AdminLogin from "./pages/AdminLogin"; // <-- Importe a página de login
+import ProtectedRoute from "./components/ProtectedRoute"; // <-- Importe o Protetor de Rota
 
-const queryClient = new QueryClient();
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Rota Home/Pública */}
+        <Route path="/" element={<Index />} />
 
-// Componente simples de Layout (o AdminLayout agora não verifica autenticação)
-const SimpleAdminLayout = ({ children }: { children: React.ReactNode }) => {
-  return <AdminLayout>{children}</AdminLayout>;
-};
+        {/* Rota de Login do Admin (PÚBLICA) */}
+        <Route path="/admin/login" element={<AdminLogin />} />
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        {/* AdminProvider REMOVIDO */}
-        <Routes>
-          <Route path="/" element={<Index />} />
+        {/* ROTAS DE ADMINISTRAÇÃO (PROTEGIDAS) */}
+        {/* Todas as rotas dentro deste <Route> serão protegidas pelo ProtectedRoute */}
+        <Route path="/admin" element={<ProtectedRoute />}>
+          {/* O elemento Admin contém o layout (Sidebar + Header + Content) */}
+          <Route path="/admin" element={<Admin />}>
+            <Route index element={<Navigate to="dashboard" replace />} />{" "}
+            {/* Redireciona /admin para /admin/dashboard */}
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="pecas" element={<PiecesManagement />} />
+            <Route path="categorias" element={<CategoriesManagement />} />
+            <Route path="hero" element={<HeroManagement />} />
+            <Route path="config" element={<Settings />} />
+            <Route path="*" element={<AdminNotFound />} />{" "}
+            {/* Rota 404 para o Admin */}
+          </Route>
+        </Route>
 
-          {/* Acesso aberto ao painel administrativo */}
-          <Route
-            path="/admin"
-            element={
-              <SimpleAdminLayout>
-                <AdminDashboard />
-              </SimpleAdminLayout>
-            }
-          />
-          <Route
-            path="/admin/dashboard"
-            element={
-              <SimpleAdminLayout>
-                <AdminDashboard />
-              </SimpleAdminLayout>
-            }
-          />
-          <Route
-            path="/admin/pieces"
-            element={
-              <SimpleAdminLayout>
-                <PiecesManagement />
-              </SimpleAdminLayout>
-            }
-          />
-          <Route
-            path="/admin/categories"
-            element={
-              <SimpleAdminLayout>
-                <CategoriesManagement />
-              </SimpleAdminLayout>
-            }
-          />
-          <Route
-            path="/admin/settings"
-            element={
-              <SimpleAdminLayout>
-                <Settings />
-              </SimpleAdminLayout>
-            }
-          />
-          <Route
-            path="/admin/hero"
-            element={
-              <SimpleAdminLayout>
-                <HeroManagement />
-              </SimpleAdminLayout>
-            }
-          />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+        {/* Rota 404 para o público */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
 
 export default App;
