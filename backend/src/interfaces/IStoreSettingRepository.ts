@@ -3,11 +3,10 @@
 import { StoreSetting } from "@prisma/client";
 import { StoreSettingsDTO } from "../common/types";
 
-// Interface para o repositório de configurações da loja
+// ✅ CORREÇÃO: A interface só deve declarar os métodos de negócio necessários.
+// Isso evita a importação acidental de métodos CRUD como 'findUnique' ou 'update'.
 export interface IStoreSettingRepository {
   getSettings(): Promise<StoreSetting | null>;
 
   updateStoreInfo(data: Partial<StoreSettingsDTO>): Promise<StoreSetting>;
-
-  // 🚨 MÉTODO updateAdminPassword REMOVIDO 🚨
 }

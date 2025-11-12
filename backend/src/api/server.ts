@@ -15,6 +15,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const prisma = new PrismaClient();
+// ✅ CORREÇÃO: O argumento 'prisma' é passado para o construtor.
 const repositoryFactory = new PrismaRepositoryFactory(prisma);
 
 // Configurações do Middleware

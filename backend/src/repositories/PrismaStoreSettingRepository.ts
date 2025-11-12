@@ -8,16 +8,15 @@ const STORE_SETTINGS_ID = "settings"; // ID fixo para o registro de configuraç�
 
 export class PrismaStoreSettingRepository implements IStoreSettingRepository {
   constructor(private prisma: PrismaClient) {}
-  updateAdminPassword(hashedPassword: string): Promise<StoreSetting> {
-    throw new Error("Method not implemented.");
-  }
 
+  // ✅ Implementa o método 'getSettings' da interface
   async getSettings(): Promise<StoreSetting | null> {
     return this.prisma.storeSetting.findUnique({
       where: { id: STORE_SETTINGS_ID },
     });
   }
 
+  // ✅ Implementa o método 'updateStoreInfo' da interface
   async updateStoreInfo(
     data: Partial<StoreSettingsDTO>
   ): Promise<StoreSetting> {
@@ -34,7 +33,7 @@ export class PrismaStoreSettingRepository implements IStoreSettingRepository {
       }
     }
 
-    // 🚨 CORREÇÃO CRÍTICA: Usa upsert para criar o registro se ele não existir
+    // Usa upsert para criar o registro se ele não existir
     return this.prisma.storeSetting.upsert({
       where: { id: STORE_SETTINGS_ID },
       update: updateData, // O que será atualizado se o registro for encontrado

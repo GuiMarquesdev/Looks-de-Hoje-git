@@ -1,54 +1,74 @@
 "use strict";
-// backend/src/api/routes/admin.route.ts
+// admin.route.ts
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createAdminRoutes = void 0;
 const express_1 = require("express");
 const AdminService_1 = require("../../services/AdminService");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+// ✅ CORREÇÃO: Reintroduz a função de fábrica nomeada 'createAdminRoutes'
 const createAdminRoutes = (repositoryFactory) => {
-    const router = (0, express_1.Router)();
+    // 2. CORREÇÃO: A instanciação de dependências é feita AGORA AQUI, usando o factory injetado.
+    const adminCredentialsRepository = repositoryFactory.createAdminCredentialsRepository();
     const storeSettingRepository = repositoryFactory.createStoreSettingRepository();
-    const adminService = new AdminService_1.AdminService(storeSettingRepository);
-    // ROTA GET /api/admin/settings (ACESSO DIRETO AGORA)
-    router.get("/settings", async (req, res) => {
-        try {
-            const settings = await adminService.getSettings();
-            if (!settings) {
-                return res.json({});
-            }
-            return res.json(settings);
-        }
-        catch (error) {
-            console.error("Error fetching admin settings:", error);
+    const adminService = new AdminService_1.AdminService(adminCredentialsRepository, storeSettingRepository);
+    const router = (0, express_1.Router)();
+    // ===================================
+    // 🔐 ROTA DE LOGIN (PÚBLICA)
+    // ===================================
+    router.post("/login", async (req, res) => {
+        const { username, password } = req.body;
+        if (!username || !password) {
             return res
-                .status(500)
-                .json({ message: "Erro ao buscar configurações da loja." });
+                .status(400)
+                .json({ message: "Username and password are required." });
         }
-    });
-    // ROTA PUT /api/admin/settings (ACESSO DIRETO AGORA)
-    router.put("/settings", async (req, res) => {
         try {
-            const updateData = req.body;
-            const payload = {
-                store_name: updateData.store_name,
-                instagram_url: updateData.instagram_url,
-                whatsapp_url: updateData.whatsapp_url,
-                email: updateData.email,
-            };
-            const updatedSettings = await adminService.updateStoreInfo(payload);
-            return res.json(updatedSettings);
-        }
-        catch (error) {
-            console.error("Error updating admin settings:", error);
-            return res.status(400).json({
-                message: error.message || "Erro ao atualizar configurações da loja.",
+            const result = await adminService.login(username, password);
+            if (!result) {
+                // Mensagem genérica para segurança
+                return res.status(401).json({ message: "Invalid credentials." });
+            }
+            // Retorna o token e o nome de usuário
+            res.json({
+                token: result.token,
+                username: result.username,
             });
         }
+        catch (error) {
+            console.error("Error during admin login:", error);
+            res.status(500).json({ message: "Server error during login process." });
+        }
     });
-    // ROTA PUT /api/admin/password (Rota desabilitada)
-    router.put("/password", async (req, res) => {
-        return res.status(400).json({
-            message: "A alteração de senha foi desabilitada, pois o login foi removido.",
-        });
+    // ===================================
+    // 🛡️ APLICAÇÃO DO MIDDLEWARE DE AUTENTICAÇÃO
+    // Todas as rotas abaixo desta linha exigirão um JWT válido
+    // ===================================
+    router.use(auth_middleware_1.authMiddleware);
+    // EXEMPLO DE ROTA PROTEGIDA: Obtém as configurações da loja
+    router.get("/settings", async (req, res) => {
+        try {
+            const settings = await adminService.getStoreSettings();
+            if (!settings) {
+                return res.status(404).json({ message: "Store settings not found." });
+            }
+            res.json(settings);
+        }
+        catch (error) {
+            console.error("Error getting store settings:", error);
+            res.status(500).json({ message: "Server error." });
+        }
+    });
+    // EXEMPLO DE ROTA PROTEGIDA: Atualiza as configurações da loja
+    router.put("/settings", async (req, res) => {
+        const settings = req.body;
+        try {
+            const updatedSettings = await adminService.updateStoreSettings(settings);
+            res.json(updatedSettings);
+        }
+        catch (error) {
+            console.error("Error updating store settings:", error);
+            res.status(500).json({ message: "Server error." });
+        }
     });
     return router;
 };

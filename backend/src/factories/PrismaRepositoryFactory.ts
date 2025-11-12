@@ -13,6 +13,7 @@ import { IHeroSettingRepository } from "../interfaces/IHeroSettingRepository";
 import { PrismaAdminCredentialsRepository } from "../repositories/PrismaAdminCredentialsRepository";
 
 export class PrismaRepositoryFactory implements IRepositoryFactory {
+  // ✅ CORRETO: O construtor exige a instância do PrismaClient
   constructor(private prisma: PrismaClient) {}
 
   createPieceRepository(): IPieceRepository {

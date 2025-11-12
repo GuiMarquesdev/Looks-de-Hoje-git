@@ -5,17 +5,14 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-// import { AdminProvider } from "./contexts/AdminContext"; // REMOVIDO
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-// import AdminLogin from "./pages/admin/AdminLogin"; // REMOVIDO
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import PiecesManagement from "./pages/admin/PiecesManagement";
 import CategoriesManagement from "./pages/admin/CategoriesManagement";
 import Settings from "./pages/admin/Settings";
 import HeroManagement from "./pages/admin/HeroManagement";
 import AdminLayout from "./components/admin/AdminLayout";
-// import { useAdmin } from "./contexts/AdminContext"; // REMOVIDO
 
 const queryClient = new QueryClient();
 
@@ -33,55 +30,55 @@ const App = () => (
         {/* AdminProvider REMOVIDO */}
         <Routes>
           <Route path="/" element={<Index />} />
-          
+
           {/* Acesso aberto ao painel administrativo */}
-          <Route 
-            path="/admin" 
+          <Route
+            path="/admin"
             element={
               <SimpleAdminLayout>
                 <AdminDashboard />
               </SimpleAdminLayout>
-            } 
+            }
           />
-          <Route 
-            path="/admin/dashboard" 
+          <Route
+            path="/admin/dashboard"
             element={
               <SimpleAdminLayout>
                 <AdminDashboard />
               </SimpleAdminLayout>
-            } 
+            }
           />
-          <Route 
-            path="/admin/pieces" 
+          <Route
+            path="/admin/pieces"
             element={
               <SimpleAdminLayout>
                 <PiecesManagement />
               </SimpleAdminLayout>
-            } 
+            }
           />
-          <Route 
-            path="/admin/categories" 
+          <Route
+            path="/admin/categories"
             element={
               <SimpleAdminLayout>
                 <CategoriesManagement />
               </SimpleAdminLayout>
-            } 
+            }
           />
-          <Route 
-            path="/admin/settings" 
+          <Route
+            path="/admin/settings"
             element={
               <SimpleAdminLayout>
                 <Settings />
               </SimpleAdminLayout>
-            } 
+            }
           />
-          <Route 
-            path="/admin/hero" 
+          <Route
+            path="/admin/hero"
             element={
               <SimpleAdminLayout>
                 <HeroManagement />
               </SimpleAdminLayout>
-            } 
+            }
           />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

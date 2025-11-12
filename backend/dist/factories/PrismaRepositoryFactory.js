@@ -8,6 +8,7 @@ const PrismaStoreSettingRepository_1 = require("../repositories/PrismaStoreSetti
 const PrismaHeroSettingRepository_1 = require("../repositories/PrismaHeroSettingRepository");
 const PrismaAdminCredentialsRepository_1 = require("../repositories/PrismaAdminCredentialsRepository");
 class PrismaRepositoryFactory {
+    // ✅ CORRETO: O construtor exige a instância do PrismaClient
     constructor(prisma) {
         this.prisma = prisma;
     }

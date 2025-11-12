@@ -1,6 +1,7 @@
 import { AdminCredentials } from "@prisma/client";
 
 export interface IAdminCredentialsRepository {
-  getCredentials(): Promise<AdminCredentials | null>;
-  updateAdminPassword(newHashedPassword: string): Promise<AdminCredentials>;
+  // ... outros métodos
+  /** Adicionado para a função de login */
+  findByUsername(username: string): Promise<AdminCredentials | null>;
 }

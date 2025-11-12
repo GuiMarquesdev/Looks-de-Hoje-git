@@ -1,24 +1,25 @@
 // backend/src/interfaces/IAdminService.ts
 
-// CORRIGIDO: Importação do tipo StoreSetting no singular
 import { StoreSetting } from "@prisma/client";
 import { StoreSettingsDTO } from "../common/types";
 
+// NOVO TIPO: Define o resultado de um login bem-sucedido na nova implementação
+export interface IAdminLoginResult {
+  token: string;
+  username: string;
+}
+
 // Interface que define os métodos que o AdminService deve implementar.
 export interface IAdminService {
-  login(
-    email: string,
-    password: string
-  ): Promise<{
-    token: string;
-    user: { id: string; email: string; store_name: string };
-  }>;
+  // CORRIGIDO: Assinatura do login para corresponder ao AdminService.ts (username e IAdminLoginResult | null)
+  login(username: string, password: string): Promise<IAdminLoginResult | null>;
 
-  // CORRIGIDO: Usando StoreSetting
-  getSettings(): Promise<Partial<StoreSetting> | null>;
+  // CORRIGIDO: Nome do método para getStoreSettings para corresponder ao AdminService.ts
+  getStoreSettings(): Promise<StoreSetting | null>;
 
-  // CORRIGIDO: Usando StoreSetting
-  updateStoreInfo(data: Partial<StoreSettingsDTO>): Promise<StoreSetting>;
+  // CORRIGIDO: Nome do método e tipo de parâmetro para corresponder ao AdminService.ts
+  updateStoreSettings(settings: StoreSetting): Promise<StoreSetting>;
 
+  // MANTIDO: O método changePassword que estava na interface original.
   changePassword(currentPassword: string, newPassword: string): Promise<void>;
 }

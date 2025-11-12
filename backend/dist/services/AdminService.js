@@ -1,39 +1,87 @@
 "use strict";
-// backend/src/services/AdminService.ts (Versão Refatorada para Sem Login)
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdminService = void 0;
-// As variáveis de ambiente não são mais necessárias para autenticação
-// const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_insecure"; // <-- REMOVIDO
-// const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@exemplo.com"; // <-- REMOVIDO
+const bcrypt = __importStar(require("bcryptjs"));
+const jwt = __importStar(require("jsonwebtoken"));
+const dotenv = __importStar(require("dotenv"));
+dotenv.config();
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    // Garante que a aplicação não inicie sem a chave de segurança
+    throw new Error("JWT_SECRET is not defined.");
+}
 class AdminService {
-    constructor(storeSettingRepository // private adminCredentialsRepository: IAdminCredentialsRepository // <-- REMOVIDO
-    ) {
+    constructor(adminCredentialsRepository, storeSettingRepository) {
+        this.adminCredentialsRepository = adminCredentialsRepository;
         this.storeSettingRepository = storeSettingRepository;
     }
-    login(email, password) {
-        throw new Error("Method not implemented.");
-    }
-    changePassword(currentPassword, newPassword) {
-        throw new Error("Method not implemented.");
-    }
-    // 1. O Login foi REMOVIDO.
-    // 2. Implementação do GET Settings (CORRIGIDO: Apenas StoreSetting)
-    async getSettings() {
-        const settings = await this.storeSettingRepository.getSettings();
-        if (settings) {
-            return settings;
+    // MÉTODO: Lógica de Login e Geração de JWT
+    async login(username, passwordAttempt) {
+        // 1. Buscar credenciais
+        const adminCredentials = await this.adminCredentialsRepository.findByUsername(username);
+        if (!adminCredentials) {
+            return null; // Usuário não encontrado
         }
-        return null;
-    }
-    // 3. Implementação do Update Store Info (CORRIGIDO: Apenas StoreSetting)
-    async updateStoreInfo(data) {
-        if (!data.store_name) {
-            throw new Error("O nome da loja é obrigatório.");
+        // 2. Comparar a senha
+        const isPasswordValid = await bcrypt.compare(passwordAttempt, adminCredentials.admin_password // CORREÇÃO: Usando 'admin_password'
+        );
+        if (!isPasswordValid) {
+            return null; // Senha inválida
         }
-        return this.storeSettingRepository.updateStoreInfo(data);
+        // 3. Gerar o JWT (payload: id e username)
+        const payload = {
+            id: adminCredentials.id,
+            username: adminCredentials.username,
+        };
+        // Token expira em 1 dia (1d). Ajuste se necessário.
+        // CORREÇÃO: Usando '!' em JWT_SECRET
+        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1d" });
+        return { token, username: adminCredentials.username };
+    }
+    // Métodos de Store Settings (agora compatíveis com IStoreSettingRepository)
+    async updateStoreSettings(settings) {
+        return this.storeSettingRepository.update(settings); // CORRIGIDO: O método 'update' agora existe na interface.
+    }
+    async getStoreSettings() {
+        return this.storeSettingRepository.findUnique(); // CORRIGIDO: O método 'findUnique' agora existe na interface.
+    }
+    // MÉTODO OBRIGATÓRIO (para satisfazer IAdminService)
+    async changePassword(currentPassword, newPassword) {
+        throw new Error("Method not implemented.");
     }
 }
 exports.AdminService = AdminService;
-// **Ações Adicionais:** Você precisa remover 'login' e 'changePassword' da interface IAdminService
-// E remover todas as importações de IAdminCredentialsRepository
 //# sourceMappingURL=AdminService.js.map

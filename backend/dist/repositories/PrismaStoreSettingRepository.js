@@ -7,14 +7,13 @@ class PrismaStoreSettingRepository {
     constructor(prisma) {
         this.prisma = prisma;
     }
-    updateAdminPassword(hashedPassword) {
-        throw new Error("Method not implemented.");
-    }
+    // ✅ Implementa o método 'getSettings' da interface
     async getSettings() {
         return this.prisma.storeSetting.findUnique({
             where: { id: STORE_SETTINGS_ID },
         });
     }
+    // ✅ Implementa o método 'updateStoreInfo' da interface
     async updateStoreInfo(data) {
         // O AdminService valida que data.store_name existe.
         if (!data.store_name) {
@@ -27,7 +26,7 @@ class PrismaStoreSettingRepository {
                 updateData[key] = value;
             }
         }
-        // 🚨 CORREÇÃO CRÍTICA: Usa upsert para criar o registro se ele não existir
+        // Usa upsert para criar o registro se ele não existir
         return this.prisma.storeSetting.upsert({
             where: { id: STORE_SETTINGS_ID },
             update: updateData, // O que será atualizado se o registro for encontrado

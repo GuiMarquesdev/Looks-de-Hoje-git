@@ -1,55 +1,76 @@
-// backend/src/services/AdminService.ts (Versão Refatorada para Sem Login)
-
 import { StoreSetting } from "@prisma/client";
-import { IAdminService } from "../interfaces/IAdminService";
+import { IAdminService, IAdminLoginResult } from "../interfaces/IAdminService";
+import { IAdminCredentialsRepository } from "../interfaces/IAdminCredentialsRepository";
+import * as bcrypt from "bcryptjs";
+import * as jwt from "jsonwebtoken";
+import * as dotenv from "dotenv";
 import { IStoreSettingRepository } from "../interfaces/IStoreSettingRepository";
-// import { IAdminCredentialsRepository } from "../interfaces/IAdminCredentialsRepository"; // <-- REMOVIDO
-import { StoreSettingsDTO } from "../common/types";
 
-// As variáveis de ambiente não são mais necessárias para autenticação
-// const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_insecure"; // <-- REMOVIDO
-// const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@exemplo.com"; // <-- REMOVIDO
+dotenv.config();
+
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  // Garante que a aplicação não inicie sem a chave de segurança
+  throw new Error("JWT_SECRET is not defined.");
+}
 
 export class AdminService implements IAdminService {
   constructor(
-    private storeSettingRepository: IStoreSettingRepository // private adminCredentialsRepository: IAdminCredentialsRepository // <-- REMOVIDO
+    private adminCredentialsRepository: IAdminCredentialsRepository,
+    private storeSettingRepository: IStoreSettingRepository
   ) {}
-  login(
-    email: string,
-    password: string
-  ): Promise<{
-    token: string;
-    user: { id: string; email: string; store_name: string };
-  }> {
+
+  // MÉTODO: Lógica de Login e Geração de JWT
+  async login(
+    username: string,
+    passwordAttempt: string
+  ): Promise<IAdminLoginResult | null> {
+    // 1. Buscar credenciais
+    const adminCredentials =
+      await this.adminCredentialsRepository.findByUsername(username);
+
+    if (!adminCredentials) {
+      return null; // Usuário não encontrado
+    }
+
+    // 2. Comparar a senha
+    const isPasswordValid = await bcrypt.compare(
+      passwordAttempt,
+      adminCredentials.admin_password // CORREÇÃO: Usando 'admin_password'
+    );
+
+    if (!isPasswordValid) {
+      return null; // Senha inválida
+    }
+
+    // 3. Gerar o JWT (payload: id e username)
+    const payload = {
+      id: adminCredentials.id,
+      username: adminCredentials.username,
+    };
+
+    // Token expira em 1 dia (1d). Ajuste se necessário.
+    // CORREÇÃO: Usando '!' em JWT_SECRET
+    const token = jwt.sign(payload, JWT_SECRET!, { expiresIn: "1d" });
+
+    return { token, username: adminCredentials.username };
+  }
+
+  // Métodos de Store Settings (agora compatíveis com IStoreSettingRepository)
+  async updateStoreSettings(settings: StoreSetting): Promise<StoreSetting> {
+    return this.storeSettingRepository.update(settings); // CORRIGIDO: O método 'update' agora existe na interface.
+  }
+
+  async getStoreSettings(): Promise<StoreSetting | null> {
+    return this.storeSettingRepository.findUnique(); // CORRIGIDO: O método 'findUnique' agora existe na interface.
+  }
+
+  // MÉTODO OBRIGATÓRIO (para satisfazer IAdminService)
+  async changePassword(
+    currentPassword: string,
+    newPassword: string
+  ): Promise<void> {
     throw new Error("Method not implemented.");
   }
-  changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    throw new Error("Method not implemented.");
-  }
-
-  // 1. O Login foi REMOVIDO.
-
-  // 2. Implementação do GET Settings (CORRIGIDO: Apenas StoreSetting)
-  async getSettings(): Promise<Partial<StoreSetting> | null> {
-    const settings = await this.storeSettingRepository.getSettings();
-    if (settings) {
-      return settings;
-    }
-    return null;
-  }
-
-  // 3. Implementação do Update Store Info (CORRIGIDO: Apenas StoreSetting)
-  async updateStoreInfo(
-    data: Partial<StoreSettingsDTO>
-  ): Promise<StoreSetting> {
-    if (!data.store_name) {
-      throw new Error("O nome da loja é obrigatório.");
-    }
-    return this.storeSettingRepository.updateStoreInfo(data);
-  }
-
-  // 4. O Change Password foi REMOVIDO.
 }
-
-// **Ações Adicionais:** Você precisa remover 'login' e 'changePassword' da interface IAdminService
-// E remover todas as importações de IAdminCredentialsRepository
