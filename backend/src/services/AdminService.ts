@@ -1,78 +1,40 @@
-import { StoreSetting } from "@prisma/client";
-import { IAdminService, IAdminLoginResult } from "../interfaces/IAdminService";
+// backend/src/services/AdminService.ts
+
+import { IAdminService } from "../interfaces/IAdminService";
+import { AdminLoginDTO } from "../common/types";
 import { IAdminCredentialsRepository } from "../interfaces/IAdminCredentialsRepository";
-import * as bcrypt from "bcryptjs";
-import * as jwt from "jsonwebtoken";
-import * as dotenv from "dotenv";
-import { IStoreSettingRepository } from "../interfaces/IStoreSettingRepository";
-
-dotenv.config();
-
-const JWT_SECRET = process.env.JWT_SECRET;
-
-if (!JWT_SECRET) {
-  // Garante que a aplicação não inicie sem a chave de segurança
-  throw new Error("JWT_SECRET is not defined.");
-}
+import { sign } from "jsonwebtoken";
+import { config } from "../config";
+import * as bcrypt from "bcrypt"; // Importa o bcrypt para comparação de hash
 
 export class AdminService implements IAdminService {
   constructor(
-    private adminCredentialsRepository: IAdminCredentialsRepository,
-    private storeSettingRepository: IStoreSettingRepository
+    private readonly adminCredentialsRepository: IAdminCredentialsRepository
   ) {}
 
-  // MÉTODO: Lógica de Login e Geração de JWT
-  async login(
-    username: string,
-    passwordAttempt: string
-  ): Promise<IAdminLoginResult | null> {
-    // 1. Buscar credenciais
-    const adminCredentials =
-      await this.adminCredentialsRepository.findByUsername(username);
-
-    if (!adminCredentials) {
-      return null; // Usuário não encontrado
-    }
-
-    // 2. Comparar a senha
-    const isPasswordValid = await bcrypt.compare(
-      passwordAttempt,
-      adminCredentials.admin_password // CORREÇÃO: Usando 'admin_password'
+  async login({ username, password }: AdminLoginDTO): Promise<string> {
+    // 1. Busca as credenciais de administrador pelo username/email fornecido
+    const admin = await this.adminCredentialsRepository.findByUsername(
+      username
     );
 
-    if (!isPasswordValid) {
-      return null; // Senha inválida
+    // 2. Verifica se o administrador existe
+    if (!admin) {
+      throw new Error("Invalid username or password"); // Retorna erro genérico por segurança
     }
 
-    // 3. Gerar o JWT (payload: id e username)
-    const payload = {
-      id: adminCredentials.id,
-      username: adminCredentials.username,
-    };
+    // 3. Compara a senha fornecida com o hash armazenado
+    const passwordMatch = await bcrypt.compare(password, admin.admin_password);
 
-    // Token expira em 1 dia (1d). Ajuste se necessário.
-    // CORREÇÃO: Usando '!' em JWT_SECRET
-    const token = jwt.sign(payload, JWT_SECRET!, { expiresIn: "1d" });
+    if (!passwordMatch) {
+      throw new Error("Invalid username or password"); // Retorna erro genérico
+    }
 
-    return { token, username: adminCredentials.username };
-  }
+    // 4. Se as credenciais estiverem corretas, gera o token JWT
+    const token = sign({ sub: admin.id, role: "admin" }, config.jwtSecret, {
+      expiresIn: "7d",
+    });
 
-  // Métodos de Store Settings (agora compatíveis com IStoreSettingRepository)
-  async updateStoreSettings(settings: StoreSetting): Promise<StoreSetting> {
-    // CORREÇÃO: Usando o método existente 'updateStoreInfo' da interface.
-    return this.storeSettingRepository.updateStoreInfo(settings);
-  }
-
-  async getStoreSettings(): Promise<StoreSetting | null> {
-    // CORREÇÃO: Usando o método existente 'getSettings' da interface.
-    return this.storeSettingRepository.getSettings();
-  }
-
-  // MÉTODO OBRIGATÓRIO (para satisfazer IAdminService)
-  async changePassword(
-    currentPassword: string,
-    newPassword: string
-  ): Promise<void> {
-    throw new Error("Method not implemented.");
+    return token;
   }
 }
