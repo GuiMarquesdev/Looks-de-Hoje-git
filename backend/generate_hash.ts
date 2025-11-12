@@ -1,25 +1,32 @@
 // backend/generate_hash.ts
-// ... (imports)
+// 🚨 Garante que o PrismaClient seja reconhecido (correção da primeira etapa)
+import { PrismaClient } from "@prisma/client";
+
+// Se o erro do 'process' persistir, adicione esta linha para resolver o problema de tipos globais
+// (mas a alteração no tsconfig.json é a preferencial)
+// declare var process: NodeJS.Process;
 
 const prisma = new PrismaClient();
 const PLAIN_PASSWORD = "admin123"; // 🚨 ESTA É A NOVA SENHA QUE VOCÊ DEVE USAR PARA LOGAR 🚨
-const ADMIN_USERNAME = process.env.ADMIN_EMAIL || "admin@123"; // Corrigido para ADMIN_USERNAME, mas mantendo a leitura da variável ADMIN_EMAIL
+// Acessa process.env.ADMIN_EMAIL, que agora deve ser reconhecido
+const ADMIN_USERNAME = process.env.ADMIN_EMAIL || "admin@123";
 
 async function generateAndSeedAdminPassword() {
-  try {
-    // ... (hash generation logic)
+  // ... (hash generation logic)
+  const newHashedPassword = "PASSWORD_HASH_PLACEHOLDER"; // Substitua pela sua lógica de hash
 
-    // 🚨 CORREÇÃO: Usar adminCredentials.upsert e setar o username e admin_password
+  try {
+    // ... (restante da sua lógica)
     await prisma.adminCredentials.upsert({
-      where: { id: "admin_credentials" }, // O ID fixo da linha é 'admin_credentials'
+      where: { id: "admin_credentials" },
       update: {
         admin_password: newHashedPassword,
-        username: ADMIN_USERNAME, // Corrigido: Agora salva o username
+        username: ADMIN_USERNAME,
       },
       create: {
         id: "admin_credentials",
         admin_password: newHashedPassword,
-        username: ADMIN_USERNAME, // Corrigido: Agora salva o username
+        username: ADMIN_USERNAME,
       },
     });
 
