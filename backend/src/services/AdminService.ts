@@ -59,11 +59,13 @@ export class AdminService implements IAdminService {
 
   // Métodos de Store Settings (agora compatíveis com IStoreSettingRepository)
   async updateStoreSettings(settings: StoreSetting): Promise<StoreSetting> {
-    return this.storeSettingRepository.update(settings); // CORRIGIDO: O método 'update' agora existe na interface.
+    // CORREÇÃO: Usando o método existente 'updateStoreInfo' da interface.
+    return this.storeSettingRepository.updateStoreInfo(settings);
   }
 
   async getStoreSettings(): Promise<StoreSetting | null> {
-    return this.storeSettingRepository.findUnique(); // CORRIGIDO: O método 'findUnique' agora existe na interface.
+    // CORREÇÃO: Usando o método existente 'getSettings' da interface.
+    return this.storeSettingRepository.getSettings();
   }
 
   // MÉTODO OBRIGATÓRIO (para satisfazer IAdminService)

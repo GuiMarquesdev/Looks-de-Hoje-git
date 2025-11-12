@@ -3,9 +3,11 @@
 // DTO para as informações de configuração da loja
 export interface StoreSettingsDTO {
   store_name: string;
-  instagram_url?: string;
-  whatsapp_url?: string;
-  email?: string;
+  // CORREÇÃO: Adicionando '| null' para permitir a atribuição do tipo StoreSetting (Prisma),
+  // onde estes campos são nulos por padrão.
+  instagram_url?: string | null;
+  whatsapp_url?: string | null;
+  email?: string | null;
 }
 
 // DTO para a alteração de senha
