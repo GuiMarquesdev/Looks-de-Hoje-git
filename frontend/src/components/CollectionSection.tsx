@@ -29,6 +29,7 @@ interface Product {
   measurements?: Record<string, string>;
   created_at: string;
   updated_at: string;
+  price?: number; // 🚨 ALTERADO: Adição do campo de preço
 }
 
 interface Category {
@@ -42,6 +43,17 @@ interface StoreSettings {
   whatsapp_url?: string;
   // Adicione outros campos necessários aqui (ex: email, instagram_url)
 }
+
+// 🚨 NOVO: Função para formatar o preço em Reais (R$)
+const formatPrice = (price?: number) => {
+  if (price === undefined || price === null) return "Preço sob consulta";
+  // Formatador para o padrão brasileiro (R$)
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+  }).format(price);
+};
 
 const CollectionSection = () => {
   const [activeCategory, setActiveCategory] = useState("todos");
@@ -318,9 +330,13 @@ const CollectionSection = () => {
 
                     {/* Product Info */}
                     <div className="p-4">
-                      <h3 className="font-playfair text-xl font-semibold text-foreground mb-2 group-hover:text-primary transition-colors line-clamp-2 min-h-[3.5rem]">
+                      <h3 className="font-playfair text-xl font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 min-h-[3.5rem]">
                         {product.name}
                       </h3>
+                      {/* 🚨 NOVO: Exibição do Preço */}
+                      <p className="font-montserrat text-2xl font-bold text-primary mb-2">
+                        {formatPrice(product.price)}
+                      </p>
 
                       <div className="flex items-center justify-between">
                         <span className="font-montserrat text-sm text-muted-foreground capitalize">

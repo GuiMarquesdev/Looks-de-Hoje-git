@@ -6,7 +6,7 @@ import {
   LayoutDashboard,
   Package,
   Tags,
-  Settings,
+  // Settings, // REMOVIDO: O ícone Settings foi removido, pois o item de Configurações está sendo removido.
   LogOut,
   Image,
 } from "lucide-react";
@@ -37,11 +37,7 @@ const sidebarItems = [
     url: "/admin/hero",
     icon: Image,
   },
-  {
-    title: "Configurações",
-    url: "/admin/settings",
-    icon: Settings,
-  },
+  // O item "Configurações" foi removido daqui
 ];
 
 const AdminSidebar = () => {
