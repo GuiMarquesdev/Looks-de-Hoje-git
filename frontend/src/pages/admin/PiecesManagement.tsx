@@ -703,6 +703,14 @@ const PiecesManagement = () => {
                 />
 
                 <div className="space-y-4">
+                  {/* INÍCIO DA CORREÇÃO */}
+                  <FormLabel className="font-montserrat">
+                    Imagens da Peça
+                  </FormLabel>
+                  <p className="text-sm text-muted-foreground font-montserrat pt-1 pb-2">
+                    Formatos aceitos: **JPG, JPEG, PNG**. Máximo de 10 imagens.
+                  </p>
+                  {/* FIM DA CORREÇÃO */}
                   {/* Este componente agora só lida com o estado local 'productImages' */}
                   <MultipleImageUpload
                     images={productImages}
