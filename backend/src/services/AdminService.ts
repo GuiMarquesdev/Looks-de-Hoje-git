@@ -1,29 +1,34 @@
 // backend/src/services/AdminService.ts
 
-// ✅ CORREÇÃO: Importa IAdminLoginResult para usar no retorno
 import { IAdminService, IAdminLoginResult } from "../interfaces/IAdminService";
 import { AdminLoginDTO } from "../common/types";
 import { IAdminCredentialsRepository } from "../interfaces/IAdminCredentialsRepository";
+import { IStoreSettingRepository } from "../interfaces/IStoreSettingRepository";
 import { sign } from "jsonwebtoken";
-// ✅ CORREÇÃO: Usa alias de caminho para o config
 import { config } from "@/config";
-// ✅ CORREÇÃO: Usa bcryptjs
 import * as bcryptjs from "bcryptjs";
 import { StoreSetting } from "@prisma/client";
 
 export class AdminService implements IAdminService {
+  // ✅ CORREÇÃO: Adiciona storeSettingRepository ao constructor
   constructor(
-    private readonly adminCredentialsRepository: IAdminCredentialsRepository
+    private readonly adminCredentialsRepository: IAdminCredentialsRepository,
+    private readonly storeSettingRepository: IStoreSettingRepository
   ) {}
-  getStoreSettings(): Promise<StoreSetting | null> {
-    throw new Error("Method not implemented.");
+
+  // ✅ CORREÇÃO: Implementa getStoreSettings
+  async getStoreSettings(): Promise<StoreSetting | null> {
+    return this.storeSettingRepository.getSettings();
   }
-  updateStoreSettings(settings: StoreSetting): Promise<StoreSetting> {
-    throw new Error("Method not implemented.");
+
+  // ✅ CORREÇÃO: Implementa updateStoreSettings
+  async updateStoreSettings(settings: StoreSetting): Promise<StoreSetting> {
+    // Nota: updateStoreInfo em IStoreSettingRepository.ts espera Partial<StoreSettingsDTO>.
+    // Estamos assumindo que `settings` (StoreSetting) é compatível para este uso.
+    return this.storeSettingRepository.updateStoreInfo(settings as any);
   }
-  changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    throw new Error("Method not implemented.");
-  }
+
+  // REMOVIDO: O método changePassword foi removido.
 
   // ✅ CORREÇÃO: Assinatura modificada para retornar Promise<IAdminLoginResult | null>
   async login({
@@ -36,7 +41,6 @@ export class AdminService implements IAdminService {
     );
 
     // 2. Verifica se o administrador existe
-    // ✅ CORREÇÃO: Retorna null em caso de falha (conforme a nova assinatura)
     if (!admin) {
       return null;
     }
@@ -48,7 +52,6 @@ export class AdminService implements IAdminService {
     );
 
     if (!passwordMatch) {
-      // ✅ CORREÇÃO: Retorna null em caso de falha (conforme a nova assinatura)
       return null;
     }
 
@@ -63,5 +66,4 @@ export class AdminService implements IAdminService {
       username: admin.username,
     };
   }
-  // (outros métodos do IAdminService precisam ser implementados aqui)
 }

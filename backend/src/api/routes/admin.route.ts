@@ -2,17 +2,18 @@
 
 import { Router, Request, Response } from "express";
 import { AdminService } from "../../services/AdminService";
-// 1. CORREÇÃO: Importa a interface para tipagem correta do argumento
 import { IRepositoryFactory } from "../../factories/IRepositoryFactory";
 import { authMiddleware } from "../middlewares/auth.middleware";
 
 // ✅ CORREÇÃO: Reintroduz a função de fábrica nomeada 'createAdminRoutes'
 export const createAdminRoutes = (repositoryFactory: IRepositoryFactory) => {
-  // 2. CORREÇÃO: A instanciação de dependências é feita AGORA AQUI, usando o factory injetado.
+  // A instanciação de dependências é feita AGORA AQUI, usando o factory injetado.
   const adminCredentialsRepository =
     repositoryFactory.createAdminCredentialsRepository();
   const storeSettingRepository =
     repositoryFactory.createStoreSettingRepository();
+
+  // Passa AMBOS os repositórios para o construtor
   const adminService = new AdminService(
     adminCredentialsRepository,
     storeSettingRepository
@@ -33,7 +34,8 @@ export const createAdminRoutes = (repositoryFactory: IRepositoryFactory) => {
     }
 
     try {
-      const result = await adminService.login(username, password);
+      // ✅ CORREÇÃO: Passa um único objeto AdminLoginDTO ({ username, password })
+      const result = await adminService.login({ username, password });
 
       if (!result) {
         // Mensagem genérica para segurança
@@ -53,7 +55,7 @@ export const createAdminRoutes = (repositoryFactory: IRepositoryFactory) => {
 
   // ===================================
   // 🛡️ APLICAÇÃO DO MIDDLEWARE DE AUTENTICAÇÃO
-  // Todas as rotas abaixo desta linha exigirão um JWT válido
+  // Todas as rotas abaixo desta linha exigir&atilde;o um JWT v&aacute;lido
   // ===================================
   router.use(authMiddleware);
 
@@ -83,5 +85,9 @@ export const createAdminRoutes = (repositoryFactory: IRepositoryFactory) => {
     }
   });
 
+  // REMOVIDO: A rota para alterar a senha (/change-password) foi removida.
+
   return router;
 };
+
+export default createAdminRoutes;

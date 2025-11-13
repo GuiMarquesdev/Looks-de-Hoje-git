@@ -1,7 +1,7 @@
 // backend/src/interfaces/IAdminService.ts
 
 import { StoreSetting } from "@prisma/client";
-import { StoreSettingsDTO, AdminLoginDTO } from "../common/types"; // ✅ CORREÇÃO: Adiciona AdminLoginDTO
+import { StoreSettingsDTO, AdminLoginDTO } from "../common/types";
 
 // NOVO TIPO: Define o resultado de um login bem-sucedido na nova implementação
 export interface IAdminLoginResult {
@@ -11,15 +11,14 @@ export interface IAdminLoginResult {
 
 // Interface que define os métodos que o AdminService deve implementar.
 export interface IAdminService {
-  // ✅ CORREÇÃO: Altera a assinatura para aceitar um único objeto AdminLoginDTO
+  // ✅ CORREÇÃO: Assinatura para login
   login(credentials: AdminLoginDTO): Promise<IAdminLoginResult | null>;
 
-  // CORRIGIDO: Nome do método para getStoreSettings para corresponder ao AdminService.ts
+  // Obtém as configurações da loja
   getStoreSettings(): Promise<StoreSetting | null>;
 
-  // CORRIGIDO: Nome do método e tipo de parâmetro para corresponder ao AdminService.ts
+  // Atualiza as configurações da loja
   updateStoreSettings(settings: StoreSetting): Promise<StoreSetting>;
 
-  // MANTIDO: O método changePassword que estava na interface original.
-  changePassword(currentPassword: string, newPassword: string): Promise<void>;
+  
 }
