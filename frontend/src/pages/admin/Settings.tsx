@@ -149,6 +149,7 @@ const Settings = () => {
 
   // ------------------------------------------
   // LÓGICA DE ALTERAÇÃO DE SENHA (SIMPLIFICADA/INATIVA)
+  // A função `changePassword` não será mais chamada, mas foi mantida no escopo.
   // ------------------------------------------
   const changePassword = async () => {
     toast.info(
@@ -163,7 +164,6 @@ const Settings = () => {
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-muted rounded w-64"></div>
           <div className="grid gap-6">
-            <div className="h-64 bg-muted rounded"></div>
             <div className="h-64 bg-muted rounded"></div>
           </div>
         </div>
@@ -270,55 +270,6 @@ const Settings = () => {
                 {saving ? "Salvando..." : "Salvar Informações"}
               </Button>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Security Settings (Simplificado e Inativo) */}
-        <Card className="luxury-card">
-          <CardHeader>
-            <CardTitle className="font-playfair flex items-center gap-2">
-              <Shield className="w-5 h-5 text-muted-foreground" />
-              Segurança (Desabilitado)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground font-montserrat">
-              A autenticação por login e senha foi removida do projeto para
-              simplificar a arquitetura. Esta seção não é mais funcional.
-            </p>
-            <div className="flex justify-end">
-              <Button
-                onClick={changePassword}
-                disabled={saving}
-                variant="outline"
-                className="font-montserrat"
-              >
-                Simular Alteração de Senha
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Current Configuration (Alerta de Segurança) */}
-        <Card className="luxury-card border-muted">
-          <CardHeader>
-            <CardTitle className="font-playfair flex items-center gap-2">
-              <SettingsIcon className="w-5 h-5 text-muted-foreground" />
-              Atenção
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground font-montserrat space-y-2">
-            <p className="text-red-600">
-              ⚠️ Este painel agora tem **acesso direto** e não requer login.
-              Qualquer pessoa que saiba a URL `/admin` pode acessá-lo e alterar
-              as configurações.
-            </p>
-            <p>
-              **Recomendação:** Se for para produção, adicione uma camada de
-              segurança (como autenticação HTTP básica ou IP Whitelisting) no
-              seu servidor (como Nginx ou Vercel/Cloudflare) para proteger as
-              rotas `/api/admin/*`.
-            </p>
           </CardContent>
         </Card>
       </div>

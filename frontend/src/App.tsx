@@ -29,10 +29,13 @@ function App() {
             <Route index element={<Navigate to="dashboard" replace />} />{" "}
             {/* Redireciona /admin para /admin/dashboard */}
             <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="pecas" element={<PiecesManagement />} />
-            <Route path="categorias" element={<CategoriesManagement />} />
+            <Route path="pieces" element={<PiecesManagement />} />{" "}
+            {/* CORRIGIDO: de "pecas" para "pieces" */}
+            <Route path="categories" element={<CategoriesManagement />} />{" "}
+            {/* CORRIGIDO: de "categorias" para "categories" */}
             <Route path="hero" element={<HeroManagement />} />
-            <Route path="config" element={<Settings />} />
+            <Route path="settings" element={<Settings />} />{" "}
+            {/* CORREÇÃO FINAL: de "config" para "settings" */}
             <Route path="*" element={<AdminNotFound />} />{" "}
             {/* Rota 404 para o Admin */}
           </Route>
