@@ -1,16 +1,30 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+// Caminho: frontend/src/pages/Admin.tsx
+import { Outlet } from "react-router-dom";
+import AdminSidebar from "@/components/admin/AdminSidebar";
 
-const Index = () => {
+const Admin = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">
-          Start building your amazing project here!
-        </p>
-      </div>
+    // Usa flexbox para a sidebar e o conteúdo
+    <div className="flex h-screen bg-gray-50">
+      {/* 1. A Sidebar é o componente de navegação fixo
+        2. O restante da tela é a área principal (main) 
+      */}
+      <AdminSidebar />
+
+      {/*
+        O main se expande para o resto da tela (flex-1)
+        e o 'p-4' adiciona padding.
+      */}
+      <main className="flex-1 overflow-auto p-4">
+        {/*
+          O Outlet renderiza o componente da rota correspondente:
+          (Dashboard, PiecesManagement, CategoriesManagement, etc.)
+          NÃO DEVE HAVER NENHUM CONTEÚDO ESTÁTICO AQUI
+        */}
+        <Outlet />
+      </main>
     </div>
   );
 };
 
-export default Index;
+export default Admin;
