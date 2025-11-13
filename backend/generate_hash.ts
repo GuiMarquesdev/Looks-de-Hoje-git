@@ -1,32 +1,28 @@
 // backend/generate_hash.ts
-// 🚨 Garante que o PrismaClient seja reconhecido (correção da primeira etapa)
 import { PrismaClient } from "@prisma/client";
-
-// Se o erro do 'process' persistir, adicione esta linha para resolver o problema de tipos globais
-// (mas a alteração no tsconfig.json é a preferencial)
-// declare var process: NodeJS.Process;
+import * as bcrypt from "bcryptjs"; // 1. Adicionado: Importação para a biblioteca de hash
 
 const prisma = new PrismaClient();
 const PLAIN_PASSWORD = "admin123"; // 🚨 ESTA É A NOVA SENHA QUE VOCÊ DEVE USAR PARA LOGAR 🚨
-// Acessa process.env.ADMIN_EMAIL, que agora deve ser reconhecido
-const ADMIN_USERNAME = process.env.ADMIN_EMAIL || "admin@123";
+const ADMIN_USERNAME = process.env.ADMIN_EMAIL || "admin@123"; // Corrigido para ADMIN_USERNAME, mas mantendo a leitura da variável ADMIN_EMAIL
 
 async function generateAndSeedAdminPassword() {
-  // ... (hash generation logic)
-  const newHashedPassword = "PASSWORD_HASH_PLACEHOLDER"; // Substitua pela sua lógica de hash
-
   try {
-    // ... (restante da sua lógica)
+    // 2. Adicionado: Lógica de geração de hash
+    const salt = await bcrypt.genSalt(10);
+    const newHashedPassword = await bcrypt.hash(PLAIN_PASSWORD, salt);
+
+    // 🚨 CORREÇÃO: Usar adminCredentials.upsert e setar o username e admin_password
     await prisma.adminCredentials.upsert({
-      where: { id: "admin_credentials" },
+      where: { id: "admin_credentials" }, // O ID fixo da linha é 'admin_credentials'
       update: {
         admin_password: newHashedPassword,
-        username: ADMIN_USERNAME,
+        username: ADMIN_USERNAME, // Corrigido: Agora salva o username
       },
       create: {
         id: "admin_credentials",
         admin_password: newHashedPassword,
-        username: ADMIN_USERNAME,
+        username: ADMIN_USERNAME, // Corrigido: Agora salva o username
       },
     });
 
@@ -36,7 +32,7 @@ async function generateAndSeedAdminPassword() {
     console.log(`Username de Login: ${ADMIN_USERNAME}`);
     console.log(`Nova Senha: ${PLAIN_PASSWORD}`);
   } catch (error) {
-    // ... (error handling)
+    console.error("Erro ao gerar e semear a senha de administrador:", error);
   } finally {
     await prisma.$disconnect();
   }
