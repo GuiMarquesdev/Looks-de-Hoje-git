@@ -29,7 +29,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Switch } from "@/components/ui/switch"; // 🚨 NOVO: Importar Switch
+import { Switch } from "@/components/ui/switch";
 import {
   // Componentes do dropdown
   DropdownMenu,
@@ -51,7 +51,7 @@ interface Category {
   id: string;
   name: string;
   is_active: boolean; // 🚨 CORREÇÃO: Adicionar is_active
-  piece_count?: number;
+  // piece_count?: number; // REMOVIDO: Campo piece_count
   created_at: string;
   updated_at: string;
 }
@@ -87,12 +87,13 @@ const CategoriesManagement = () => {
 
       const categories: Category[] = await response.json();
 
-      const categoriesWithCount: Category[] = categories.map((category) => ({
-        ...category,
-        piece_count: category.piece_count ?? 0, // Assumindo que o count virá do backend
-      }));
+      // REMOVIDO: Lógica de contagem de peças (já que estava sempre zero no frontend)
+      // const categoriesWithCount: Category[] = categories.map((category) => ({
+      //   ...category,
+      //   piece_count: category.piece_count ?? 0, // Assumindo que o count virá do backend
+      // }));
 
-      setCategories(categoriesWithCount);
+      setCategories(categories); // Usar categorias diretamente
     } catch (error) {
       console.error("Error fetching categories:", error);
       toast.error("Erro ao carregar categorias");
@@ -153,10 +154,11 @@ const CategoriesManagement = () => {
 
   const deleteCategory = async (category: Category) => {
     try {
-      if (category.piece_count && category.piece_count > 0) {
-        toast.error("Não é possível excluir categoria que possui peças");
-        return;
-      }
+      // REMOVIDO: Checagem de piece_count (já que estava sempre zero no frontend)
+      // if (category.piece_count && category.piece_count > 0) {
+      //   toast.error("Não é possível excluir categoria que possui peças");
+      //   return;
+      // }
 
       const response = await fetch(`${API_URL}/categories/${category.id}`, {
         method: "DELETE",
@@ -329,9 +331,10 @@ const CategoriesManagement = () => {
               <TableRow>
                 <TableHead className="font-montserrat">Nome</TableHead>
                 <TableHead className="font-montserrat">Status</TableHead>
-                <TableHead className="font-montserrat">
+                {/* REMOVIDO: Coluna de Quantidade de Peças */}
+                {/* <TableHead className="font-montserrat">
                   Quantidade de Peças
-                </TableHead>
+                </TableHead> */}
                 <TableHead className="text-right font-montserrat">
                   Ações
                 </TableHead>
@@ -351,11 +354,12 @@ const CategoriesManagement = () => {
                       {category.is_active ? "Ativa" : "Inativa"}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  {/* REMOVIDO: Célula de Quantidade de Peças */}
+                  {/* <TableCell>
                     <Badge variant="secondary" className="font-montserrat">
                       {category.piece_count} peças
                     </Badge>
-                  </TableCell>
+                  </TableCell> */}
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -391,7 +395,7 @@ const CategoriesManagement = () => {
               {filteredCategories.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={3} // Alterado para 3 colunas (Nome, Status, Ações)
                     className="text-center py-8 text-muted-foreground font-montserrat"
                   >
                     Nenhuma categoria encontrada
