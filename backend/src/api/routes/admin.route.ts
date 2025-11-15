@@ -3,7 +3,7 @@
 import { Router, Request, Response } from "express";
 import { AdminService } from "../../services/AdminService";
 import { IRepositoryFactory } from "../../factories/IRepositoryFactory";
-import { authMiddleware } from "../middlewares/auth.middleware";
+import { authMiddleware } from "../middlewares/auth.middleware.js"; // Adicionar o '.js'
 
 // ✅ CORREÇÃO: Reintroduz a função de fábrica nomeada 'createAdminRoutes'
 export const createAdminRoutes = (repositoryFactory: IRepositoryFactory) => {
