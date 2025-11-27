@@ -1,5 +1,3 @@
-// src/pages/admin/CategoriesManagement.tsx
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +29,6 @@ import {
 } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import {
-  // Componentes do dropdown
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -44,21 +41,20 @@ import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-
-const API_URL = "http://localhost:8000/api";
+// IMPORTANTE: Importar a instância api configurada em vez de usar fetch direto
+import api from "../../config/api";
 
 interface Category {
   id: string;
   name: string;
-  is_active: boolean; // 🚨 CORREÇÃO: Adicionar is_active
-  // piece_count?: number; // REMOVIDO: Campo piece_count
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
 
 const categorySchema = z.object({
   name: z.string().min(1, "Nome da categoria é obrigatório"),
-  is_active: z.boolean().default(true), // 🚨 CORREÇÃO: Novo campo
+  is_active: z.boolean().default(true),
 });
 
 const CategoriesManagement = () => {
@@ -72,7 +68,7 @@ const CategoriesManagement = () => {
     resolver: zodResolver(categorySchema),
     defaultValues: {
       name: "",
-      is_active: true, // 🚨 CORREÇÃO: Valor padrão
+      is_active: true,
     },
   });
 
@@ -82,18 +78,10 @@ const CategoriesManagement = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`${API_URL}/categories`);
-      if (!response.ok) throw new Error("Erro ao buscar categorias");
+      // CORREÇÃO: Adicione <Category[]> logo após o .get
+      const response = await api.get<Category[]>("/categories");
 
-      const categories: Category[] = await response.json();
-
-      // REMOVIDO: Lógica de contagem de peças (já que estava sempre zero no frontend)
-      // const categoriesWithCount: Category[] = categories.map((category) => ({
-      //   ...category,
-      //   piece_count: category.piece_count ?? 0, // Assumindo que o count virá do backend
-      // }));
-
-      setCategories(categories); // Usar categorias diretamente
+      setCategories(response.data);
     } catch (error) {
       console.error("Error fetching categories:", error);
       toast.error("Erro ao carregar categorias");
@@ -103,44 +91,21 @@ const CategoriesManagement = () => {
   };
 
   const onSubmit = async (values: z.infer<typeof categorySchema>) => {
-    const method = editingCategory ? "PUT" : "POST";
-    const url = editingCategory
-      ? `${API_URL}/categories/${editingCategory.id}`
-      : `${API_URL}/categories`;
-
     try {
-      // 🚨 CORREÇÃO CRÍTICA: Envia o payload completo
       const payload = {
         name: values.name,
         is_active: values.is_active,
-        // O slug será gerado no backend a partir do name
       };
 
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload), // ENVIANDO is_active
-      });
-
-      if (response.status === 409) {
-        toast.error("Já existe uma categoria com este nome");
-        return;
+      if (editingCategory) {
+        // EDIÇÃO (PUT)
+        await api.put(`/categories/${editingCategory.id}`, payload);
+        toast.success("Categoria atualizada com sucesso!");
+      } else {
+        // CRIAÇÃO (POST)
+        await api.post("/categories", payload);
+        toast.success("Categoria criada com sucesso!");
       }
-
-      if (!response.ok) {
-        let errorMessage = "Erro ao salvar categoria";
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
-        } catch (e) {
-          // Não é JSON
-        }
-        throw new Error(errorMessage);
-      }
-
-      toast.success(
-        `Categoria ${editingCategory ? "atualizada" : "criada"} com sucesso!`
-      );
 
       setIsDialogOpen(false);
       setEditingCategory(null);
@@ -148,46 +113,47 @@ const CategoriesManagement = () => {
       fetchCategories();
     } catch (error: any) {
       console.error("Error saving category:", error);
-      toast.error(error.message || "Erro ao salvar categoria");
+      // Tratamento de erro 409 (Conflito/Duplicado) ou genérico
+      if (error.response?.status === 409) {
+        toast.error("Já existe uma categoria com este nome");
+      } else {
+        toast.error(
+          error.response?.data?.message || "Erro ao salvar categoria"
+        );
+      }
     }
   };
 
   const deleteCategory = async (category: Category) => {
     try {
-      // REMOVIDO: Checagem de piece_count (já que estava sempre zero no frontend)
-      // if (category.piece_count && category.piece_count > 0) {
-      //   toast.error("Não é possível excluir categoria que possui peças");
-      //   return;
-      // }
-
-      const response = await fetch(`${API_URL}/categories/${category.id}`, {
-        method: "DELETE",
-      });
-
-      if (response.status === 400) {
-        toast.error("Não é possível excluir categoria que possui peças");
-        return;
-      }
-
-      if (!response.ok) throw new Error("Erro ao excluir categoria");
-
+      await api.delete(`/categories/${category.id}`);
       toast.success(`Categoria "${category.name}" removida`);
       fetchCategories();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting category:", error);
-      toast.error("Erro ao excluir categoria");
+      if (error.response?.status === 400) {
+        toast.error(
+          "Não é possível excluir categoria que possui peças vinculadas"
+        );
+      } else {
+        toast.error("Erro ao excluir categoria");
+      }
     }
   };
 
   const openEditDialog = (category: Category) => {
     setEditingCategory(category);
-    form.reset({ name: category.name, is_active: category.is_active }); // 🚨 CORREÇÃO: Incluir is_active
+    // Garante que o form receba os valores corretos
+    form.reset({
+      name: category.name,
+      is_active: Boolean(category.is_active),
+    });
     setIsDialogOpen(true);
   };
 
   const openAddDialog = () => {
     setEditingCategory(null);
-    form.reset({ name: "", is_active: true }); // 🚨 CORREÇÃO: Incluir is_active
+    form.reset({ name: "", is_active: true });
     setIsDialogOpen(true);
   };
 
@@ -262,7 +228,6 @@ const CategoriesManagement = () => {
                     </FormItem>
                   )}
                 />
-                {/* 🚨 NOVO CAMPO: is_active (usando o componente Switch) */}
                 <FormField
                   control={form.control}
                   name="is_active"
@@ -331,10 +296,6 @@ const CategoriesManagement = () => {
               <TableRow>
                 <TableHead className="font-montserrat">Nome</TableHead>
                 <TableHead className="font-montserrat">Status</TableHead>
-                {/* REMOVIDO: Coluna de Quantidade de Peças */}
-                {/* <TableHead className="font-montserrat">
-                  Quantidade de Peças
-                </TableHead> */}
                 <TableHead className="text-right font-montserrat">
                   Ações
                 </TableHead>
@@ -354,12 +315,6 @@ const CategoriesManagement = () => {
                       {category.is_active ? "Ativa" : "Inativa"}
                     </Badge>
                   </TableCell>
-                  {/* REMOVIDO: Célula de Quantidade de Peças */}
-                  {/* <TableCell>
-                    <Badge variant="secondary" className="font-montserrat">
-                      {category.piece_count} peças
-                    </Badge>
-                  </TableCell> */}
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -395,7 +350,7 @@ const CategoriesManagement = () => {
               {filteredCategories.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={3} // Alterado para 3 colunas (Nome, Status, Ações)
+                    colSpan={3}
                     className="text-center py-8 text-muted-foreground font-montserrat"
                   >
                     Nenhuma categoria encontrada
