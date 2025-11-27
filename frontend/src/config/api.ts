@@ -11,7 +11,7 @@ const api = axios.create({
 // Exporta a instância do Axios como o default export
 export default api;
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token"); // Ou onde você estiver salvando o token
+  const token = localStorage.getItem("authToken");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useAuth, AuthUser } from "../contexts/AuthContext"; // CAMINHO CORRIGIDO AQUI (contexts)
+import { useAuth, AuthUser } from "../contexts/AuthContext";
 import { useNavigate, Navigate } from "react-router-dom";
 import api from "../config/api";
 import { Input } from "../components/ui/input";
@@ -13,12 +13,16 @@ import {
 } from "../components/ui/card";
 import { Label } from "../components/ui/label";
 import { useToast } from "../components/ui/use-toast";
-import LogoAdmin from "../assets/logo-admin.png"; // Verifique o caminho da sua logo
+import LogoAdmin from "../assets/logo-admin.png";
 
-// Define o formato esperado da resposta de sucesso do login do backend
+// 1. Ajuste na Interface para bater com o AuthController do Laravel
+// O Laravel retorna: { token: "...", user: { username: "...", ... } }
 interface LoginResponseData {
   token: string;
-  username: string;
+  user: {
+    username: string;
+    // outros campos se houver (id, email, etc)
+  };
 }
 
 const AdminLogin: React.FC = () => {
@@ -29,7 +33,6 @@ const AdminLogin: React.FC = () => {
   const { login, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
-  // Redireciona se o usuário já estiver autenticado
   if (isAuthenticated) {
     return <Navigate to="/admin/dashboard" replace />;
   }
@@ -39,18 +42,20 @@ const AdminLogin: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Chama a nova rota de login do backend, tipando a resposta
-      const response = await api.post<LoginResponseData>("/admin/login", {
+      // 2. CORREÇÃO DA ROTA: Mudado de "/admin/login" para "/login"
+      // O axios já tem a baseURL configurada, então ele chamará http://localhost:8000/api/login
+      const response = await api.post<LoginResponseData>("/login", {
         username,
         password,
       });
 
-      const { token, username: loggedInUsername } = response.data;
+      // 3. CORREÇÃO DA DESTRUTURAÇÃO: Pegamos 'user' e extraímos o username dele
+      const { token, user } = response.data;
+      const loggedInUsername = user.username;
 
-      // Criar o objeto AuthUser, conforme esperado pela função login
       const userData: AuthUser = { username: loggedInUsername };
 
-      login(token, userData); // Salva o token e o objeto de usuário no contexto
+      login(token, userData);
 
       toast({
         title: "Sucesso!",
@@ -59,12 +64,13 @@ const AdminLogin: React.FC = () => {
       });
 
       navigate("/admin/dashboard");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
-      // Captura a mensagem de erro do backend ou usa uma genérica
+
       const errorMessage =
-        (error as any).response?.data?.message ||
+        error.response?.data?.message ||
         "Erro de conexão ou credenciais inválidas.";
+
       toast({
         title: "Erro de Login",
         description: errorMessage,

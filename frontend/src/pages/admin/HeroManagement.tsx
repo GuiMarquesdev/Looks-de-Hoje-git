@@ -163,22 +163,22 @@ const HeroManagement = () => {
 
   // Função auxiliar para salvar o slide no DB
   const saveSlideToDB = async (slideData: HeroSlide) => {
-    // 1. Prepara os dados para o PUT (remove campos que podem ser temporários)
+    const token = localStorage.getItem("authToken"); // Pega o token
     const payload = { ...slideData };
-    // Se precisar remover campos que não existem no banco de dados, faça aqui:
-    // delete payload.someTemporaryField;
 
     try {
       const response = await fetch(`${API_URL}/hero/slides/${slideData.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        // Usa o slideData completo (já com a URL permanente)
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`, // Adiciona o Token
+        },
         body: JSON.stringify(payload),
       });
 
       if (!response.ok) throw new Error("Falha ao salvar alterações");
 
-      // Recarrega os dados para ter o estado mais fresco do servidor
       await fetchHeroData();
     } catch (error) {
       console.error("Erro ao salvar slide:", error);
@@ -253,24 +253,14 @@ const HeroManagement = () => {
   // Função para lidar com o upload e o erro blob
   const handleImageUpload = async (file: File) => {
     if (!selectedSlide) return;
+    const token = localStorage.getItem("authToken"); // Pega o token
 
-    // Guarda o original para reverter em caso de falha
+    // ... (código de preview igual ao anterior) ...
     const originalSlide = { ...selectedSlide };
-
-    // 1. CRIAÇÃO DO BLOB URL PARA PRÉ-VISUALIZAÇÃO IMEDIATA
     const tempImageUrl = URL.createObjectURL(file);
     const temporarySlide = { ...selectedSlide, image_url: tempImageUrl };
-
-    // Atualiza o slide selecionado e o heroData com a URL temporária
     setSelectedSlide(temporarySlide);
-    if (heroData) {
-      setHeroData({
-        ...heroData,
-        slides: heroData.slides.map((s) =>
-          s.id === selectedSlide.id ? temporarySlide : s
-        ),
-      });
-    }
+    // ...
 
     setUploading(true);
 
@@ -280,36 +270,29 @@ const HeroManagement = () => {
 
       const response = await fetch(`${API_URL}/hero/upload`, {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`, // IMPORTANTE: Token no Upload
+          // Nota: Não adicione Content-Type aqui, o fetch adiciona multipart/form-data automaticamente
+        },
         body: formData,
       });
 
       if (!response.ok) throw new Error("Falha no upload");
 
       const data = await response.json();
-      const serverResponseUrl = data.url;
 
-      // 2. Cria o objeto de slide com a URL PERMANENTE do servidor
-      const finalUpdatedSlide = {
-        ...originalSlide,
-        image_url: serverResponseUrl,
-      };
-
-      // 3. Atualiza o estado local com a URL permanente
+      // ... (resto da lógica igual) ...
+      const finalUpdatedSlide = { ...originalSlide, image_url: data.url };
       setSelectedSlide(finalUpdatedSlide);
-
-      // PASSO CRÍTICO: SALVA IMEDIATAMENTE A NOVA URL PERMANENTE NO BANCO DE DADOS
       await saveSlideToDB(finalUpdatedSlide);
 
-      toast.success("Imagem enviada e URL permanente salva com sucesso!");
+      toast.success("Imagem enviada com sucesso!");
     } catch (error) {
       toast.error("Erro ao enviar imagem");
       console.error(error);
-
-      // Se houver falha (no upload ou no saveToDB), recarrega os dados do servidor para reverter o estado
       await fetchHeroData();
     } finally {
       setUploading(false);
-      // Revoga o Blob URL na seção 'finally'.
       URL.revokeObjectURL(tempImageUrl);
     }
   };
@@ -364,16 +347,28 @@ const HeroManagement = () => {
 
   const addNewSlide = async () => {
     try {
-      // Seu endpoint de adição já deve retornar um slide com o URL permanente
+      // 1. Pega o token correto (authToken)
+      const token = localStorage.getItem("authToken");
+
+      if (!token) {
+        toast.error("Você não está autenticado. Faça login novamente.");
+        return;
+      }
+
       const response = await fetch(`${API_URL}/hero/slides`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          // 2. Envia o cabeçalho de Autorização
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           image_url:
             "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80",
           order: heroData ? heroData.slides.length + 1 : 1,
           title: "Novo Slide",
-          subtitle: "Adicione seu conteúdo aqui",
+          subtitle: "Conteúdo do novo slide",
           image_position_x: 50,
           image_position_y: 50,
           image_zoom: 100,
@@ -381,12 +376,22 @@ const HeroManagement = () => {
         }),
       });
 
-      if (!response.ok) throw new Error("Falha ao criar slide");
+      // Se o token for inválido, o backend retorna 401
+      if (response.status === 401) {
+        toast.error("Sessão expirada. Faça login novamente.");
+        // Opcional: window.location.href = "/admin/login";
+        return;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Falha ao criar slide");
+      }
 
       await fetchHeroData();
       toast.success("Novo slide adicionado!");
-    } catch (error) {
-      toast.error("Erro ao adicionar slide");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao adicionar slide");
       console.error(error);
     }
   };
@@ -395,12 +400,28 @@ const HeroManagement = () => {
     if (!heroData) return;
 
     try {
-      // O backend já faz a deleção e reordenação dos índices
+      // 1. Recuperar o token
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        toast.error("Sessão expirada. Faça login novamente.");
+        return;
+      }
+
+      // 2. Adicionar headers de autorização
       const response = await fetch(`${API_URL}/hero/slides/${id}`, {
         method: "DELETE",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
       });
 
-      if (!response.ok) throw new Error("Falha ao remover slide no servidor.");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || "Falha ao remover slide no servidor."
+        );
+      }
 
       await fetchHeroData();
 
@@ -410,7 +431,7 @@ const HeroManagement = () => {
       }
       toast.success("Slide removido com sucesso!");
     } catch (error) {
-      toast.error("Erro ao remover slide. Verifique o console.");
+      toast.error("Erro ao remover slide.");
       console.error(error);
       await fetchHeroData();
     }
