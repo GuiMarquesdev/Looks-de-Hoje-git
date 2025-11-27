@@ -2,17 +2,23 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Category extends Model
 {
-    use HasFactory;
+    protected $fillable = [
+        'name',
+        'slug',
+        'is_active' // <--- IMPORTANTE TER ESTE CAMPO AQUI
+    ];
 
-    protected $fillable = ['name', 'slug'];
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
 
+    // Relacionamento com peças (opcional, mas bom já ter)
     public function pieces()
     {
-        return $this->hasMany(Piece::class, 'categoryId');
+        return $this->hasMany(Piece::class);
     }
 }

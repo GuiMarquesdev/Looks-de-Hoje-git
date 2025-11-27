@@ -11,11 +11,21 @@ return new class extends Migration
         Schema::create('pieces', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->text('description');
+            $table->string('description', 350)->nullable(); // Limite de 350 igual ao Node
             $table->decimal('price', 10, 2);
-            $table->json('images')->nullable(); // O Prisma usava array, aqui usamos JSON para guardar os caminhos
-            $table->boolean('isPromoted')->default(false);
-            $table->foreignId('categoryId')->constrained('categories')->onDelete('cascade');
+            $table->json('images')->nullable(); // Array de URLs das imagens
+            $table->json('measurements')->nullable(); // Medidas (busto, cintura, etc)
+            
+            // Campos para a ferramenta de enquadramento (ImageFramingTool)
+            $table->float('image_position_x')->default(50);
+            $table->float('image_position_y')->default(50);
+            $table->float('image_zoom')->default(100);
+
+            $table->string('status')->default('available'); // 'available' ou 'rented'
+            
+            // Relacionamento
+            $table->foreignId('category_id')->constrained('categories')->onDelete('cascade');
+            
             $table->timestamps();
         });
     }

@@ -10,11 +10,12 @@ return new class extends Migration
     {
         Schema::create('hero_settings', function (Blueprint $table) {
             $table->id();
-            $table->string('title');
-            $table->string('subtitle');
-            $table->string('buttonText');
-            $table->string('buttonLink'); // Adicionado para completar a lógica comum de Hero
-            $table->json('backgroundImage')->nullable(); // Caminho da imagem
+            $table->string('title')->nullable();
+            $table->string('subtitle')->nullable();
+            $table->string('cta_text')->nullable(); // <--- O campo que estava faltando
+            $table->string('cta_link')->nullable(); // <--- Link do botão
+            $table->string('background_image_url')->nullable();
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }

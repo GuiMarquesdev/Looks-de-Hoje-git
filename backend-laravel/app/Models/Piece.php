@@ -2,31 +2,34 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Piece extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
-        'name', 
-        'description', 
-        'price', 
-        'images', 
-        'isPromoted', 
-        'categoryId'
+        'name',
+        'description',
+        'price',
+        'category_id',
+        'images',           // JSON
+        'measurements',     // JSON
+        'image_position_x',
+        'image_position_y',
+        'image_zoom',
+        'status'
     ];
 
-    // Converte o JSON de imagens para array automaticamente
     protected $casts = [
         'images' => 'array',
-        'isPromoted' => 'boolean',
-        'price' => 'float'
+        'measurements' => 'array',
+        'image_position_x' => 'float',
+        'image_position_y' => 'float',
+        'image_zoom' => 'float',
+        'price' => 'float',
     ];
 
     public function category()
     {
-        return $this->belongsTo(Category::class, 'categoryId');
+        return $this->belongsTo(Category::class);
     }
 }

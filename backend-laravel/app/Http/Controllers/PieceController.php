@@ -4,23 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Piece;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class PieceController extends Controller
 {
     public function index(Request $request)
     {
-        // Implementa filtros se necessário (ex: ?category=vestidos)
         $query = Piece::with('category');
-
-        if ($request->has('categoryId')) {
-            $query->where('categoryId', $request->categoryId);
-        }
-        
-        if ($request->has('promoted')) {
-            $query->where('isPromoted', filter_var($request->promoted, FILTER_VALIDATE_BOOLEAN));
-        }
-
         return response()->json($query->get());
     }
 
@@ -31,31 +20,29 @@ class PieceController extends Controller
 
     public function store(Request $request)
     {
+        // Validação compatível com o payload do Frontend
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'required|string',
+            'description' => 'nullable|string|max:350',
             'price' => 'required|numeric',
-            'categoryId' => 'required|exists:categories,id',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048', // Validação de upload
-            'isPromoted' => 'boolean' // Opcional
+            'category_id' => 'required|exists:categories,id',
+            'images' => 'array', // Recebe array de URLs
+            'measurements' => 'nullable|array',
+            'status' => 'string'
         ]);
-
-        $imagePaths = [];
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
-                // Salva em storage/app/public/uploads e gera URL
-                $path = $image->store('uploads', 'public');
-                $imagePaths[] = asset('storage/' . $path);
-            }
-        }
 
         $piece = Piece::create([
             'name' => $validated['name'],
-            'description' => $validated['description'],
+            'description' => $request->description,
             'price' => $validated['price'],
-            'categoryId' => $validated['categoryId'],
-            'isPromoted' => $request->input('isPromoted', false),
-            'images' => $imagePaths // O Model fará o cast para JSON
+            'category_id' => $validated['category_id'],
+            'images' => $request->images ?? [],
+            'measurements' => $request->measurements,
+            'status' => $request->status ?? 'available',
+            // Valores padrão para o frame
+            'image_position_x' => 50,
+            'image_position_y' => 50,
+            'image_zoom' => 100,
         ]);
 
         return response()->json($piece, 201);
@@ -65,35 +52,31 @@ class PieceController extends Controller
     {
         $piece = Piece::findOrFail($id);
         
-        $validated = $request->validate([
-            'name' => 'string|max:255',
-            'description' => 'string',
-            'price' => 'numeric',
-            'categoryId' => 'exists:categories,id',
-            'isPromoted' => 'boolean'
-        ]);
-
-        // Lógica para adicionar novas imagens ou substituir (depende da sua regra de negócio)
-        // Aqui estou apenas atualizando dados textuais para simplificar
-        $piece->update($validated);
+        // O frontend envia apenas os campos que mudaram ou o objeto completo
+        // Fillable garante que só campos permitidos sejam atualizados
+        $piece->fill($request->all());
+        $piece->save();
 
         return response()->json($piece);
     }
 
     public function destroy($id)
     {
+        Piece::destroy($id);
+        return response()->noContent();
+    }
+    
+    // Rota específica para alternar status (se o frontend usar essa rota dedicada)
+    public function toggleStatus(Request $request, $id)
+    {
         $piece = Piece::findOrFail($id);
+        $status = $request->input('status');
         
-        // Opcional: Deletar imagens do disco
-        /*
-        if ($piece->images) {
-            foreach ($piece->images as $imgUrl) {
-                // Lógica para extrair path relativo e deletar
-            }
+        if ($status && in_array($status, ['available', 'rented'])) {
+            $piece->status = $status;
+            $piece->save();
         }
-        */
 
-        $piece->delete();
-        return response()->json(null, 204);
+        return response()->json($piece);
     }
 }
