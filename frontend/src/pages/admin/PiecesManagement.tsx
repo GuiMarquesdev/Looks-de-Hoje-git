@@ -66,7 +66,7 @@ import {
 } from "@/components/admin/MultipleImageUpload";
 import { ImageFramingTool } from "@/components/admin/ImageFramingTool";
 
-const API_URL = "http://localhost:3000/api";
+const API_URL = "http://localhost:8000/api";
 const PIECES_URL = `${API_URL}/pieces`;
 const CATEGORIES_URL = `${API_URL}/categories`;
 const UPLOAD_URL = `${API_URL}/pieces/upload-images`;

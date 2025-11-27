@@ -8,7 +8,7 @@ import { Package, CheckCircle, Clock, BarChart3 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend } from "recharts";
 
 // Define a URL base da API
-const API_URL = "http://localhost:3000/api";
+const API_URL = "http://localhost:8000/api";
 
 interface Stats {
   total: number;

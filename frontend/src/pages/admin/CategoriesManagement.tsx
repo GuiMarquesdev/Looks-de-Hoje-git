@@ -45,7 +45,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
-const API_URL = "http://localhost:3000/api";
+const API_URL = "http://localhost:8000/api";
 
 interface Category {
   id: string;

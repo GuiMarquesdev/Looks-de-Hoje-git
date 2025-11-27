@@ -9,7 +9,7 @@ import ProductModal from "@/components/ProductModal";
 import whatsappIcon from "@/assets/whatsapp-icon.svg";
 
 // Importa a URL base da API
-const API_URL = "http://localhost:3000/api";
+const API_URL = "http://localhost:8000/api";
 
 // 🚨 NOVO: Define a constante para o limite inicial de exibição
 const INITIAL_DISPLAY_LIMIT = 6;
