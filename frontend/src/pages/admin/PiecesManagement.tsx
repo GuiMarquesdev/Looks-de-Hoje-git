@@ -44,7 +44,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Textarea } from "@/components/ui/textarea"; // <-- NOVO IMPORT
+import { Textarea } from "@/components/ui/textarea";
 import {
   MoreHorizontal,
   Plus,
@@ -71,7 +71,11 @@ const PIECES_URL = `${API_URL}/pieces`;
 const CATEGORIES_URL = `${API_URL}/categories`;
 const UPLOAD_URL = `${API_URL}/pieces/upload-images`;
 
-// Interfaces... (mantidas como estão no seu código)
+// Helper para pegar token
+const getToken = () =>
+  localStorage.getItem("token") || localStorage.getItem("authToken");
+
+// Interfaces
 interface Piece {
   id: string;
   name: string;
@@ -85,7 +89,7 @@ interface Piece {
   image_zoom?: number;
   description?: string;
   measurements?: Record<string, string>;
-  price?: number; // Campo de preço, tipo number para a API
+  price?: number;
   created_at: string;
   updated_at: string;
 }
@@ -95,51 +99,27 @@ interface Category {
   name: string;
 }
 
-// Schema de validação (AGORA ACEITANDO STRING PARA PRICE)
+// Schema de Validação
 const pieceSchema = z.object({
-  name: z
-    .string()
-    .min(1, "Nome é obrigatório")
-    .max(60, "Nome deve ter no máximo 60 caracteres"),
+  name: z.string().min(1, "Nome é obrigatório").max(60, "Máximo 60 caracteres"),
   category_id: z.string().min(1, "Categoria é obrigatória"),
   status: z.enum(["available", "rented"]),
-  description: z.string().optional(),
-  measurements: z
-    .record(z.string())
-    .optional()
-    .transform((val) => {
-      if (val && Object.values(val).every((v) => v === "" || v === null)) {
-        return undefined;
-      }
-      return val;
-    }),
-  // CORREÇÃO DE TIPAGEM: Recebe como string, valida o formato, e a conversão final é feita no onSubmit
+  description: z.string().max(350, "Máximo 350 caracteres").optional(),
+  measurements: z.record(z.string()).optional(),
   price: z
     .string()
-    .optional()
+    .min(1, "Preço é obrigatório")
     .refine(
       (val) => {
-        if (val === undefined || val === "") return true;
-        // Permite números, vírgula/ponto para decimal, e ignora espaços.
+        if (!val) return true;
         return /^\s*\d*([,\.]\d{1,2})?\s*$/.test(val.trim());
       },
-      {
-        message:
-          "Formato de preço inválido (use apenas números, vírgula ou ponto).",
-      }
+      { message: "Formato inválido (use apenas números e vírgula/ponto)." }
     ),
-  images: z
-    .array(
-      z.object({
-        url: z.string().optional(),
-        image_url: z.string().optional(),
-        order: z.number(),
-        isNew: z.boolean().optional(),
-        file: z.any().optional(),
-      })
-    )
-    .optional(),
+  images: z.array(z.any()).optional(),
 });
+
+type PieceFormValues = z.infer<typeof pieceSchema>;
 
 const PiecesManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -149,12 +129,12 @@ const PiecesManagement = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPiece, setEditingPiece] = useState<Piece | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  // Estados para Imagens e Enquadramento
   const [productImages, setProductImages] = useState<ProductImage[]>([]);
   const [imagePositionX, setImagePositionX] = useState(50);
   const [imagePositionY, setImagePositionY] = useState(50);
   const [imageZoom, setImageZoom] = useState(100);
-
-  type PieceFormValues = z.infer<typeof pieceSchema>;
 
   const form = useForm<PieceFormValues>({
     resolver: zodResolver(pieceSchema),
@@ -163,14 +143,8 @@ const PiecesManagement = () => {
       category_id: "",
       status: "available",
       description: "",
-      measurements: {
-        busto: "",
-        cintura: "",
-        quadril: "",
-        comprimento: "",
-        tamanho: "",
-      },
-      price: "", // Valor inicial como string vazia para o input
+      measurements: {},
+      price: "",
       images: [],
     },
   });
@@ -180,16 +154,23 @@ const PiecesManagement = () => {
     fetchCategories();
   }, []);
 
-  // ... (fetchPieces, fetchCategories, toggleStatus, deletePiece - mantidas as funções auxiliares)
-
+  // --- CORREÇÃO: Forçar conversão de IDs para String ---
   const fetchPieces = async () => {
     try {
-      const piecesResponse = await fetch(PIECES_URL);
-      if (!piecesResponse.ok) throw new Error("Erro ao buscar peças.");
-      const data: Piece[] = await piecesResponse.json();
-      setPieces(data);
+      const response = await fetch(PIECES_URL);
+      if (!response.ok) throw new Error("Erro ao buscar peças.");
+      const data = await response.json();
+
+      // Converte IDs numéricos para string para evitar bugs no Select e Zod
+      const formattedData = data.map((p: any) => ({
+        ...p,
+        id: String(p.id),
+        category_id: String(p.category_id),
+      }));
+
+      setPieces(formattedData);
     } catch (error) {
-      console.error("Error fetching pieces:", error);
+      console.error(error);
       toast.error("Erro ao carregar peças");
     } finally {
       setLoading(false);
@@ -198,277 +179,214 @@ const PiecesManagement = () => {
 
   const fetchCategories = async () => {
     try {
-      const categoriesResponse = await fetch(CATEGORIES_URL);
-      if (!categoriesResponse.ok) throw new Error("Erro ao buscar categorias.");
-      const data: Category[] = await categoriesResponse.json();
-      setCategories(data || []);
+      const response = await fetch(CATEGORIES_URL);
+      if (!response.ok) throw new Error("Erro ao buscar categorias.");
+      const data = await response.json();
+
+      // Converte IDs numéricos para string (ESSENCIAL PARA O SELECT FUNCIONAR)
+      const formattedCategories = data.map((c: any) => ({
+        ...c,
+        id: String(c.id),
+      }));
+
+      setCategories(formattedCategories || []);
     } catch (error) {
-      console.error("Error fetching categories:", error);
+      console.error(error);
     }
   };
+  // ----------------------------------------------------
 
-  // 🛑 CORREÇÃO NO FRONTEND: Adicionando validação de resposta para diagnosticar falha no backend
   const toggleStatus = async (piece: Piece) => {
+    const token = getToken();
+    if (!token) return toast.error("Faça login para continuar.");
+
     try {
       const newStatus = piece.status === "available" ? "rented" : "available";
       const response = await fetch(`${PIECES_URL}/${piece.id}/toggle-status`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        // Envia o status FINAL desejado
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
         body: JSON.stringify({ status: newStatus }),
       });
 
-      // 1. Tenta ler o corpo da resposta (pode ser o objeto da peça ou um objeto de erro)
-      let responseBody: any;
-      try {
-        responseBody = await response.json();
-      } catch (e) {
-        // Se a resposta não for JSON, trata como erro genérico
-        if (!response.ok) {
-          throw new Error("Erro de servidor sem corpo de resposta JSON.");
-        }
-        // Se for OK, pode ser uma resposta vazia, o que é um erro de implementação do backend
-        responseBody = {
-          status: piece.status,
-          message: "Resposta vazia do servidor.",
-        };
-      }
-
-      // 2. Verifica o status HTTP
-      if (!response.ok) {
-        // Se o status HTTP não for OK (400, 500, etc.)
-        throw new Error(
-          responseBody.message || "Erro ao alterar status (Status não-OK)"
-        );
-      }
-
-      // 3. 🚨 NOVO CHECK: Confirma se a peça retornada tem o status esperado
-      if (responseBody.status !== newStatus) {
-        console.error(
-          "Status mismatch no Backend:",
-          responseBody.status,
-          "Esperado:",
-          newStatus
-        );
-        // Esta mensagem de erro indicará que o PROBLEMA está no REPOSITÓRIO do BACKEND
-        throw new Error(
-          "A atualização do status não foi confirmada pelo servidor. O backend retornou sucesso, mas o status da peça está incorreto. Verifique a implementação do repositório (ex: PrismaPieceRepository.ts)."
-        );
-      }
-
-      const statusText = newStatus === "available" ? "disponível" : "alugada";
-      toast.success(`Peça marcada como ${statusText}`);
-      fetchPieces(); // Recarrega a lista
-    } catch (error) {
-      console.error("Error updating status:", error);
-      toast.error(
-        "Erro ao alterar status: " +
-          (error instanceof Error ? error.message : "Erro desconhecido.")
-      );
-    }
-  };
-  // FIM DA CORREÇÃO NO FRONTEND
-
-  const deletePiece = async (piece: Piece) => {
-    try {
-      if (
-        !window.confirm(
-          `Tem certeza que deseja excluir a peça "${piece.name}"?`
-        )
-      )
-        return;
-
-      const response = await fetch(`${PIECES_URL}/${piece.id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Erro ao excluir peça");
-      }
-
-      toast.success(`Peça "${piece.name}" removida do catálogo`);
+      if (!response.ok) throw new Error("Erro ao alterar status");
+      toast.success("Status atualizado!");
       fetchPieces();
     } catch (error) {
-      console.error("Error deleting piece:", error);
+      toast.error("Erro ao alterar status");
+    }
+  };
+
+  const deletePiece = async (piece: Piece) => {
+    const token = getToken();
+    if (!token) return toast.error("Faça login para continuar.");
+    if (!window.confirm(`Excluir "${piece.name}"?`)) return;
+
+    try {
+      const response = await fetch(`${PIECES_URL}/${piece.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) throw new Error("Erro ao excluir");
+      toast.success("Peça removida");
+      fetchPieces();
+    } catch (error) {
       toast.error("Erro ao excluir peça");
     }
   };
-
-  // =========================================================================
-  // CORREÇÃO: Lógica de Upload Aprimorada (Com Logs Fortes)
-  // =========================================================================
 
   const uploadNewImages = async (images: ProductImage[]): Promise<string[]> => {
     const filesToUpload = images
       .filter((img) => img.isNew && img.file)
       .map((img) => img.file) as File[];
 
-    if (filesToUpload.length === 0) {
-      console.log("No new files to upload. Skipping upload step.");
-      return [];
-    }
+    if (filesToUpload.length === 0) return [];
+    const token = getToken();
+    if (!token) throw new Error("Sessão expirada.");
 
     const formData = new FormData();
-    filesToUpload.forEach((file) => {
-      // O nome 'files' DEVE coincidir com o esperado pelo Multer em pieces.route.ts
-      formData.append("files", file);
-    });
+    filesToUpload.forEach((file) => formData.append("files[]", file));
 
     try {
-      console.log(
-        "📤 Iniciando Upload. Arquivos a enviar:",
-        filesToUpload.length
-      );
-
-      const uploadResponse = await fetch(UPLOAD_URL, {
+      const response = await fetch(UPLOAD_URL, {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
         body: formData,
       });
 
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        console.error(
-          "❌ Erro na resposta do upload (Status:",
-          uploadResponse.status,
-          "):",
-          errorText
-        );
-        // Tenta parsear JSON se possível, caso contrário usa texto do erro
-        try {
-          const errorData = JSON.parse(errorText);
-          throw new Error(
-            errorData.message ||
-              `Falha no upload com status: ${uploadResponse.status}`
-          );
-        } catch (e) {
-          throw new Error(
-            `Falha no upload (Erro do servidor não JSON): ${errorText.substring(
-              0,
-              50
-            )}...`
-          );
-        }
-      }
-
-      const data: { urls: string[] } = await uploadResponse.json();
-      const urls = data.urls || [];
-
-      if (urls.length === 0 && filesToUpload.length > 0) {
-        // O servidor retornou 200, mas sem URLs.
-        console.error(
-          "❌ ERRO: Upload retornou sucesso, mas lista de URLs está vazia."
-        );
-        throw new Error(
-          "Falha interna: o servidor não forneceu os URLs das imagens salvas."
-        );
-      }
-
-      console.log("✅ Upload concluído. URLs permanentes recebidos:", urls);
-
-      return urls; // Retorna array de strings: ['url1', 'url2', ...]
+      if (!response.ok) throw new Error("Falha no upload");
+      const data = await response.json();
+      return data.urls || [];
     } catch (error) {
-      // Re-throw para ser pego pelo catch de onSubmit
       throw error;
     }
   };
 
   const onSubmit = async (values: PieceFormValues) => {
+    const token = getToken();
+    if (!token) return toast.error("Sessão expirada.");
+
     try {
       setUploading(true);
-
-      // 1. UPLOAD DE IMAGENS E OBTENÇÃO DOS URLS PERMANENTES
       const newPermanentUrls = await uploadNewImages(productImages);
 
-      // 2. FILTRA IMAGENS EXISTENTES (apenas URLs permanentes que não são novos)
       const existingImages = productImages
-        .filter((img) => !img.isNew) // Apenas imagens que já existiam
+        .filter((img) => !img.isNew)
         .map((img) => img.image_url)
-        .filter((url) => url && !url.startsWith("blob:")) as string[]; // Garante que são URLs permanentes
+        .filter((url) => url && !url.startsWith("blob:")) as string[];
 
-      // 3. MESCLA: URLs existentes + URLs novas.
       const finalUrlList = [...existingImages, ...newPermanentUrls];
-
-      // 4. Mapeia para o formato final que o Backend espera (Array de objetos { url, order })
       const finalImages = finalUrlList.map((url, index) => ({
-        url: url,
-        order: index + 1, // Reordena de 1 em diante
+        url,
+        order: index + 1,
       }));
 
-      if (finalImages.length === 0) {
-        throw new Error(
-          "É necessário ter pelo menos uma imagem para salvar a peça."
-        );
-      }
+      if (finalImages.length === 0)
+        throw new Error("Adicione pelo menos uma imagem.");
 
-      // 5. CORREÇÃO DE TIPAGEM: Conversão de string (do input) para number (para a API)
-      const rawPrice = values.price;
-      const priceForApi =
-        rawPrice !== undefined && rawPrice !== ""
-          ? parseFloat(rawPrice.replace(",", ".")) // Limpa a string
-          : null; // Envia null se for vazio ou undefined
+      const priceForApi = values.price
+        ? parseFloat(values.price.replace(",", "."))
+        : 0;
+
+      // Sanitização de medidas vazias
+      let cleanMeasurements = undefined;
+      if (values.measurements) {
+        cleanMeasurements = {};
+        Object.entries(values.measurements).forEach(([k, v]) => {
+          if (v && v.trim() !== "") cleanMeasurements[k] = v;
+        });
+      }
 
       const pieceData = {
         name: values.name,
         category_id: values.category_id,
         status: values.status,
         images: finalImages,
-        image_url: finalImages[0].url, // Define a primeira como imagem principal
+        image_url: finalImages[0].url,
         image_position_x: imagePositionX,
         image_position_y: imagePositionY,
         image_zoom: imageZoom,
         description: values.description || null,
-        measurements: values.measurements,
-        price: priceForApi, // <<-- ADICIONADO: Envia o preço convertido
+        measurements: cleanMeasurements,
+        price: priceForApi,
       };
 
-      let response: Response;
       const url = editingPiece
         ? `${PIECES_URL}/${editingPiece.id}`
         : PIECES_URL;
       const method = editingPiece ? "PUT" : "POST";
 
-      response = await fetch(url, {
+      const response = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
         body: JSON.stringify(pieceData),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(
-          errorData.message || "Erro desconhecido ao salvar peça"
-        );
+        if (response.status === 422 && errorData.errors) {
+          const msgs = Object.values(errorData.errors).flat().join("\n");
+          throw new Error(`Validação falhou:\n${msgs}`);
+        }
+        throw new Error(errorData.message || "Erro ao salvar");
       }
 
-      toast.success(
-        `Peça ${editingPiece ? "atualizada" : "adicionada"} com sucesso!`
-      );
-
-      // LIMPEZA E RECARGA
+      toast.success(editingPiece ? "Peça atualizada!" : "Peça adicionada!");
       setIsDialogOpen(false);
-      setEditingPiece(null);
-      setProductImages([]);
-      setImagePositionX(50);
-      setImagePositionY(50);
-      setImageZoom(100);
-      form.reset();
       fetchPieces();
     } catch (error) {
-      console.error("❌ Erro ao salvar peça:", error);
-      toast.error(
-        "Erro ao salvar peça: " +
-          (error instanceof Error ? error.message : "Verifique o console.")
-      );
+      toast.error(error instanceof Error ? error.message : "Erro desconhecido");
     } finally {
       setUploading(false);
     }
   };
 
+  const openAddDialog = () => {
+    setEditingPiece(null);
+    setProductImages([]);
+    setImagePositionX(50);
+    setImagePositionY(50);
+    setImageZoom(100);
+
+    // Garante que pegamos o ID como string para o valor default
+    const defaultCatId = categories.length > 0 ? String(categories[0].id) : "";
+
+    form.reset({
+      name: "",
+      category_id: defaultCatId,
+      status: "available",
+      description: "",
+      measurements: {
+        busto: "",
+        cintura: "",
+        quadril: "",
+        comprimento: "",
+        tamanho: "",
+      },
+      price: "",
+      images: [],
+    });
+    setIsDialogOpen(true);
+  };
+
   const openEditDialog = (piece: Piece) => {
     setEditingPiece(piece);
 
-    // Mapeamento correto para o estado do frontend (usando ProductImage)
+    // Preparar imagens
     const pieceImages: ProductImage[] =
       piece.images && piece.images.length > 0
         ? piece.images.map((img) => ({
@@ -479,15 +397,15 @@ const PiecesManagement = () => {
         : piece.image_url
         ? [{ image_url: piece.image_url, order: 0, isNew: false }]
         : [];
-
     setProductImages(pieceImages);
+
     setImagePositionX(piece.image_position_x ?? 50);
     setImagePositionY(piece.image_position_y ?? 50);
     setImageZoom(piece.image_zoom ?? 100);
 
     form.reset({
       name: piece.name,
-      category_id: piece.category_id,
+      category_id: String(piece.category_id), // Garante string
       status: piece.status,
       description: piece.description || "",
       measurements: piece.measurements || {
@@ -497,31 +415,7 @@ const PiecesManagement = () => {
         comprimento: "",
         tamanho: "",
       },
-      price: piece.price?.toString() || "", // <<-- CORRIGIDO: Converte o preço de número para string para o input
-      images: pieceImages as any,
-    });
-    setIsDialogOpen(true);
-  };
-
-  const openAddDialog = () => {
-    setEditingPiece(null);
-    setProductImages([]);
-    setImagePositionX(50);
-    setImagePositionY(50);
-    setImageZoom(100);
-    form.reset({
-      name: "",
-      category_id: categories[0]?.id || "",
-      status: "available",
-      description: "",
-      measurements: {
-        busto: "",
-        cintura: "",
-        quadril: "",
-        comprimento: "",
-        tamanho: "",
-      },
-      price: "", // Valor inicial como string vazia
+      price: piece.price ? piece.price.toString().replace(".", ",") : "",
       images: [],
     });
     setIsDialogOpen(true);
@@ -533,48 +427,31 @@ const PiecesManagement = () => {
       piece.category?.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-muted rounded w-64"></div>
-          <div className="h-96 bg-muted rounded"></div>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="p-6">Carregando catálogo...</div>;
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-playfair font-bold text-foreground">
-            Gestão de Peças
-          </h1>
+          <h1 className="text-3xl font-playfair font-bold">Gestão de Peças</h1>
           <p className="text-muted-foreground font-montserrat">
-            Gerencie todas as peças do seu catálogo
+            Catálogo completo
           </p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button
               onClick={openAddDialog}
-              className="flex items-center gap-2 bg-primary hover:bg-primary-dark font-montserrat"
+              className="flex items-center gap-2 bg-primary"
             >
-              <Plus className="w-4 h-4" />
-              Adicionar Peça
+              <Plus className="w-4 h-4" /> Nova Peça
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-[95vw] sm:max-w-[500px] md:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="font-playfair">
+              <DialogTitle>
                 {editingPiece ? "Editar Peça" : "Nova Peça"}
               </DialogTitle>
-              <DialogDescription className="font-montserrat">
-                {editingPiece
-                  ? "Atualize os dados da peça."
-                  : "Adicione uma nova peça ao catálogo."}
-              </DialogDescription>
             </DialogHeader>
             <Form {...form}>
               <form
@@ -586,115 +463,88 @@ const PiecesManagement = () => {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-montserrat">
-                        Nome da Peça
-                      </FormLabel>
+                      <FormLabel>Nome</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="Digite o nome da peça"
-                          {...field}
-                          className="font-montserrat"
-                        />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="category_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-montserrat">
-                        Categoria
-                      </FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="font-montserrat">
-                            <SelectValue placeholder="Selecione uma categoria" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {categories.map((category) => (
-                            <SelectItem
-                              key={category.id}
-                              value={category.id}
-                              className="font-montserrat"
-                            >
-                              {category.name}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="category_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Categoria</FormLabel>
+                        {/* SELECT CONTROLADO CORRETAMENTE */}
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {categories.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="available">
+                              Disponível
                             </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-montserrat">Status</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="font-montserrat">
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem
-                            value="available"
-                            className="font-montserrat"
-                          >
-                            Disponível
-                          </SelectItem>
-                          <SelectItem
-                            value="rented"
-                            className="font-montserrat"
-                          >
-                            Alugada
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                            <SelectItem value="rented">Alugada</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                   control={form.control}
                   name="price"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-montserrat">
-                        Preço (R$)
-                      </FormLabel>
+                      <FormLabel>Preço (R$)</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Ex: 150,00"
                           {...field}
-                          value={
-                            field.value === undefined || field.value === null
-                              ? ""
-                              : field.value
+                          placeholder="0,00"
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value.replace(/[^\d,\.]/g, "")
+                            )
                           }
-                          onChange={(e) => {
-                            // Permite apenas números, vírgula e ponto (para decimal)
-                            const value = e.target.value.replace(
-                              /[^\d,\.]/g,
-                              ""
-                            );
-                            field.onChange(value);
-                          }}
-                          className="font-montserrat"
-                          type="text"
                         />
                       </FormControl>
                       <FormMessage />
@@ -702,16 +552,8 @@ const PiecesManagement = () => {
                   )}
                 />
 
-                <div className="space-y-4">
-                  {/* INÍCIO DA CORREÇÃO */}
-                  <FormLabel className="font-montserrat">
-                    Imagens da Peça
-                  </FormLabel>
-                  <p className="text-sm text-muted-foreground font-montserrat pt-1 pb-2">
-                    Formatos aceitos: **JPG, JPEG, PNG**. Máximo de 10 imagens.
-                  </p>
-                  {/* FIM DA CORREÇÃO */}
-                  {/* Este componente agora só lida com o estado local 'productImages' */}
+                <div className="space-y-2">
+                  <FormLabel>Imagens (Máx: 10)</FormLabel>
                   <MultipleImageUpload
                     images={productImages}
                     onChange={setProductImages}
@@ -720,51 +562,39 @@ const PiecesManagement = () => {
                 </div>
 
                 {productImages.length > 0 && productImages[0].image_url && (
-                  <div className="space-y-2">
-                    <ImageFramingTool
-                      imageUrl={productImages[0].image_url}
-                      positionX={imagePositionX}
-                      positionY={imagePositionY}
-                      zoom={imageZoom}
-                      onPositionChange={(x, y) => {
-                        setImagePositionX(x);
-                        setImagePositionY(y);
-                      }}
-                      onZoomChange={setImageZoom}
-                      title="Ajuste do Enquadramento"
-                      subtitle="Esta será a imagem principal da peça"
-                    />
-                  </div>
+                  <ImageFramingTool
+                    imageUrl={productImages[0].image_url}
+                    positionX={imagePositionX}
+                    positionY={imagePositionY}
+                    zoom={imageZoom}
+                    onPositionChange={(x, y) => {
+                      setImagePositionX(x);
+                      setImagePositionY(y);
+                    }}
+                    onZoomChange={setImageZoom}
+                    title="Ajuste da Capa"
+                  />
                 )}
 
                 <FormField
                   control={form.control}
                   name="description"
-                  render={({ field }) => {
-                    // LÓGICA DE CONTAGEM DE CARACTERES
-                    const charCount = (field.value || "").length;
-
-                    return (
-                      <FormItem>
-                        <FormLabel className="font-montserrat">
-                          Descrição
-                        </FormLabel>
-                        <FormControl>
-                          {/* Usa o componente Textarea em vez da tag nativa, mantendo o min-height customizado */}
-                          <Textarea
-                            placeholder="Descrição da peça..."
-                            {...field}
-                            className="font-montserrat min-h-[100px]" // Usa a classe para altura mínima e fonte
-                          />
-                        </FormControl>
-                        {/* Indicador de Contagem de Caracteres */}
-                        <div className="flex justify-end text-xs text-muted-foreground font-montserrat mt-1">
-                          {charCount} caracteres
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    );
-                  }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Descrição</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Detalhes..."
+                          className="min-h-[100px]"
+                        />
+                      </FormControl>
+                      <div className="text-xs text-right text-muted-foreground">
+                        {field.value?.length || 0}/350 caracteres
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
 
                 <FormField
@@ -772,92 +602,84 @@ const PiecesManagement = () => {
                   name="measurements"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-montserrat">Medidas</FormLabel>
-                      <FormControl>
-                        <div className="space-y-2">
-                          <div className="grid grid-cols-2 gap-2">
-                            <Input
-                              placeholder="Busto"
-                              value={field.value?.busto || ""}
-                              onChange={(e) =>
-                                field.onChange({
-                                  ...field.value,
-                                  busto: e.target.value,
-                                })
-                              }
-                              className="font-montserrat"
-                            />
-                            <Input
-                              placeholder="Cintura"
-                              value={field.value?.cintura || ""}
-                              onChange={(e) =>
-                                field.onChange({
-                                  ...field.value,
-                                  cintura: e.target.value,
-                                })
-                              }
-                              className="font-montserrat"
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <Input
-                              placeholder="Quadril"
-                              value={field.value?.quadril || ""}
-                              onChange={(e) =>
-                                field.onChange({
-                                  ...field.value,
-                                  quadril: e.target.value,
-                                })
-                              }
-                              className="font-montserrat"
-                            />
-                            <Input
-                              placeholder="Comprimento"
-                              value={field.value?.comprimento || ""}
-                              onChange={(e) =>
-                                field.onChange({
-                                  ...field.value,
-                                  comprimento: e.target.value,
-                                })
-                              }
-                              className="font-montserrat"
-                            />
-                          </div>
+                      <FormLabel>Medidas</FormLabel>
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
                           <Input
-                            placeholder="Tamanho (P/M/G)"
-                            value={field.value?.tamanho || ""}
+                            placeholder="Busto"
+                            value={field.value?.busto || ""}
                             onChange={(e) =>
                               field.onChange({
                                 ...field.value,
-                                tamanho: e.target.value,
+                                busto: e.target.value,
                               })
                             }
-                            className="font-montserrat"
+                          />
+                          <Input
+                            placeholder="Cintura"
+                            value={field.value?.cintura || ""}
+                            onChange={(e) =>
+                              field.onChange({
+                                ...field.value,
+                                cintura: e.target.value,
+                              })
+                            }
                           />
                         </div>
-                      </FormControl>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input
+                            placeholder="Quadril"
+                            value={field.value?.quadril || ""}
+                            onChange={(e) =>
+                              field.onChange({
+                                ...field.value,
+                                quadril: e.target.value,
+                              })
+                            }
+                          />
+                          <Input
+                            placeholder="Comprimento"
+                            value={field.value?.comprimento || ""}
+                            onChange={(e) =>
+                              field.onChange({
+                                ...field.value,
+                                comprimento: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                        <Input
+                          placeholder="Tamanho (P/M/G)"
+                          value={field.value?.tamanho || ""}
+                          onChange={(e) =>
+                            field.onChange({
+                              ...field.value,
+                              tamanho: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                <div className="flex justify-end gap-3">
+                <div className="flex justify-end gap-3 pt-2">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => setIsDialogOpen(false)}
-                    className="font-montserrat"
                   >
                     Cancelar
                   </Button>
                   <Button
                     type="submit"
                     disabled={uploading}
-                    className="bg-primary hover:bg-primary-dark font-montserrat"
+                    className="bg-primary"
                   >
                     {uploading ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
                         Salvando...
                       </>
                     ) : (
@@ -871,16 +693,16 @@ const PiecesManagement = () => {
         </Dialog>
       </div>
 
-      <Card className="luxury-card">
+      <Card>
         <CardHeader>
-          <CardTitle className="font-playfair">Catálogo de Peças</CardTitle>
+          <CardTitle>Lista de Peças</CardTitle>
           <div className="flex items-center space-x-2">
             <Search className="w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar peças..."
+              placeholder="Buscar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm font-montserrat"
+              className="max-w-sm"
             />
           </div>
         </CardHeader>
@@ -888,63 +710,38 @@ const PiecesManagement = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="font-montserrat">Imagem</TableHead>
-                <TableHead className="font-montserrat">Nome</TableHead>
-                <TableHead className="font-montserrat">Categoria</TableHead>
-                <TableHead className="font-montserrat">Status</TableHead>
-                <TableHead className="text-right font-montserrat">
-                  Ações
-                </TableHead>
+                <TableHead>Imagem</TableHead>
+                <TableHead>Nome</TableHead>
+                <TableHead>Categoria</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredPieces.map((piece) => (
                 <TableRow key={piece.id}>
                   <TableCell>
-                    {(() => {
-                      const firstImage =
-                        piece.images && (piece.images as Array<any>).length > 0
-                          ? (piece.images as Array<any>).sort(
-                              (a, b) => a.order - b.order
-                            )[0]
-                          : null;
-                      const imageUrl = firstImage?.url || piece.image_url;
-
-                      return imageUrl ? (
-                        <div className="relative">
-                          <img
-                            src={imageUrl}
-                            alt={piece.name}
-                            className="w-12 h-12 object-cover rounded-lg"
-                          />
-                          {piece.images &&
-                            (piece.images as Array<any>).length > 1 && (
-                              <div className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
-                                {(piece.images as Array<any>).length}
-                              </div>
-                            )}
-                        </div>
-                      ) : (
-                        <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
-                          <ImageIcon className="w-6 h-6 text-muted-foreground" />
-                        </div>
-                      );
-                    })()}
+                    {piece.image_url ? (
+                      <img
+                        src={piece.image_url}
+                        alt={piece.name}
+                        className="w-10 h-10 object-cover rounded"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
+                        <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                      </div>
+                    )}
                   </TableCell>
-                  <TableCell className="font-medium font-montserrat">
-                    {piece.name}
-                  </TableCell>
+                  <TableCell className="font-medium">{piece.name}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className="font-montserrat">
-                      {piece.category?.name}
-                    </Badge>
+                    <Badge variant="secondary">{piece.category?.name}</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge
                       variant={
                         piece.status === "available" ? "default" : "destructive"
                       }
-                      className="font-montserrat"
                     >
                       {piece.status === "available" ? "Disponível" : "Alugada"}
                     </Badge>
@@ -953,45 +750,33 @@ const PiecesManagement = () => {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Abrir menu</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuLabel className="font-montserrat">
-                          Ações
-                        </DropdownMenuLabel>
-                        {/* Ação de editar removida: Adicionei esta funcionalidade no botão principal da linha */}
-                        <DropdownMenuItem
-                          onClick={() => openEditDialog(piece)}
-                          className="font-montserrat"
-                        >
-                          <Edit className="mr-2 h-4 w-4" />
-                          Editar
+                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => openEditDialog(piece)}>
+                          <Edit className="mr-2 h-4 w-4" /> Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => toggleStatus(piece)}
-                          className="font-montserrat"
-                        >
+                        <DropdownMenuItem onClick={() => toggleStatus(piece)}>
                           {piece.status === "available" ? (
                             <>
-                              <ToggleRight className="mr-2 h-4 w-4" />
-                              Marcar como Alugada
+                              <ToggleRight className="mr-2 h-4 w-4" /> Marcar
+                              Alugada
                             </>
                           ) : (
                             <>
-                              <ToggleLeft className="mr-2 h-4 w-4" />
-                              Marcar como Disponível
+                              <ToggleLeft className="mr-2 h-4 w-4" /> Marcar
+                              Disponível
                             </>
                           )}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => deletePiece(piece)}
-                          className="text-destructive font-montserrat"
+                          className="text-destructive"
                         >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Excluir
+                          <Trash2 className="mr-2 h-4 w-4" /> Excluir
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -1002,7 +787,7 @@ const PiecesManagement = () => {
                 <TableRow>
                   <TableCell
                     colSpan={5}
-                    className="text-center py-8 text-muted-foreground font-montserrat"
+                    className="text-center py-6 text-muted-foreground"
                   >
                     Nenhuma peça encontrada
                   </TableCell>
