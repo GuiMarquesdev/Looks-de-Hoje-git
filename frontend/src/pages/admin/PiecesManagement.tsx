@@ -154,14 +154,12 @@ const PiecesManagement = () => {
     fetchCategories();
   }, []);
 
-  // --- CORREÇÃO: Forçar conversão de IDs para String ---
   const fetchPieces = async () => {
     try {
       const response = await fetch(PIECES_URL);
       if (!response.ok) throw new Error("Erro ao buscar peças.");
       const data = await response.json();
 
-      // Converte IDs numéricos para string para evitar bugs no Select e Zod
       const formattedData = data.map((p: any) => ({
         ...p,
         id: String(p.id),
@@ -183,7 +181,6 @@ const PiecesManagement = () => {
       if (!response.ok) throw new Error("Erro ao buscar categorias.");
       const data = await response.json();
 
-      // Converte IDs numéricos para string (ESSENCIAL PARA O SELECT FUNCIONAR)
       const formattedCategories = data.map((c: any) => ({
         ...c,
         id: String(c.id),
@@ -194,7 +191,6 @@ const PiecesManagement = () => {
       console.error(error);
     }
   };
-  // ----------------------------------------------------
 
   const toggleStatus = async (piece: Piece) => {
     const token = getToken();
@@ -298,7 +294,6 @@ const PiecesManagement = () => {
         ? parseFloat(values.price.replace(",", "."))
         : 0;
 
-      // Sanitização de medidas vazias
       let cleanMeasurements = undefined;
       if (values.measurements) {
         cleanMeasurements = {};
@@ -362,7 +357,6 @@ const PiecesManagement = () => {
     setImagePositionY(50);
     setImageZoom(100);
 
-    // Garante que pegamos o ID como string para o valor default
     const defaultCatId = categories.length > 0 ? String(categories[0].id) : "";
 
     form.reset({
@@ -386,7 +380,6 @@ const PiecesManagement = () => {
   const openEditDialog = (piece: Piece) => {
     setEditingPiece(piece);
 
-    // Preparar imagens
     const pieceImages: ProductImage[] =
       piece.images && piece.images.length > 0
         ? piece.images.map((img) => ({
@@ -405,7 +398,7 @@ const PiecesManagement = () => {
 
     form.reset({
       name: piece.name,
-      category_id: String(piece.category_id), // Garante string
+      category_id: String(piece.category_id),
       status: piece.status,
       description: piece.description || "",
       measurements: piece.measurements || {
@@ -479,7 +472,6 @@ const PiecesManagement = () => {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Categoria</FormLabel>
-                        {/* SELECT CONTROLADO CORRETAMENTE */}
                         <Select
                           onValueChange={field.onChange}
                           value={field.value}
@@ -721,17 +713,26 @@ const PiecesManagement = () => {
               {filteredPieces.map((piece) => (
                 <TableRow key={piece.id}>
                   <TableCell>
-                    {piece.image_url ? (
-                      <img
-                        src={piece.image_url}
-                        alt={piece.name}
-                        className="w-10 h-10 object-cover rounded"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
-                        <ImageIcon className="w-5 h-5 text-muted-foreground" />
-                      </div>
-                    )}
+                    {(() => {
+                      // CORREÇÃO: Tenta pegar image_url OU a primeira imagem do array
+                      const displayImage =
+                        piece.image_url ||
+                        (piece.images && piece.images.length > 0
+                          ? piece.images[0].url
+                          : null);
+
+                      return displayImage ? (
+                        <img
+                          src={displayImage}
+                          alt={piece.name}
+                          className="w-10 h-10 object-cover rounded"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
+                          <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="font-medium">{piece.name}</TableCell>
                   <TableCell>
