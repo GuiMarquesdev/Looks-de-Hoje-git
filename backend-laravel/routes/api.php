@@ -30,6 +30,10 @@ Route::get('/hero', [HeroController::class, 'index']);
 // Configurações da loja (Público para leitura)
 Route::get('/settings', [StoreSettingController::class, 'show']);
 
+// --- CORREÇÃO AQUI ---
+// Adicionada a rota GET /admin/settings para resolver o erro 405
+Route::get('/admin/settings', [StoreSettingController::class, 'show']);
+// ---------------------
 
 // --- Rotas Protegidas (Admin) ---
 Route::middleware('auth:sanctum')->group(function () {
@@ -46,7 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // === Categorias ===
     Route::post('/categories', [CategoryController::class, 'store']);
-    Route::put('/categories/{id}', [CategoryController::class, 'update']); // Adicionei PUT caso precise editar categoria
+    Route::put('/categories/{id}', [CategoryController::class, 'update']); 
     Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
 
     // === Hero / Banner (Novas Rotas) ===
@@ -55,16 +59,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/hero', [HeroController::class, 'update']);
 
     // Gerenciamento dos Slides Individuais
-    Route::post('/hero/slides', [HeroController::class, 'storeSlide']);      // Criar Slide
-    Route::put('/hero/slides/{id}', [HeroController::class, 'updateSlide']); // Atualizar Slide
-    Route::delete('/hero/slides/{id}', [HeroController::class, 'destroySlide']); // Deletar Slide
+    Route::post('/hero/slides', [HeroController::class, 'storeSlide']);      
+    Route::put('/hero/slides/{id}', [HeroController::class, 'updateSlide']); 
+    Route::delete('/hero/slides/{id}', [HeroController::class, 'destroySlide']); 
     
     // Upload de Imagem Específico do Hero
     Route::post('/hero/upload', [HeroController::class, 'uploadImage']);
     
     // === Configurações da Loja ===
     // Atualizar Configurações (ex: Admin dashboard info)
-    Route::put('/admin/settings', [StoreSettingController::class, 'update']); // O frontend chama /admin/settings no PUT
-    // Caso o frontend chame /settings no PUT também, mantenha esta linha:
+    // Nota: Se você estiver enviando o PUT sem token no frontend, 
+    // precisará mover esta linha para fora do grupo middleware auth:sanctum também.
+    Route::put('/admin/settings', [StoreSettingController::class, 'update']); 
     Route::put('/settings', [StoreSettingController::class, 'update']);
 });

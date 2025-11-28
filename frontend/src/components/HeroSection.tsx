@@ -3,8 +3,11 @@
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+// 1. Importamos a URL base da configuração centralizada
+import { API_URL } from "@/config/api";
 
-const API_URL = "http://localhost:3000/api/hero";
+// 2. REMOVIDO: A linha que fixava a porta 3000 incorretamente
+// const API_URL = "http://localhost:3000/api/hero";
 
 import heroDress1 from "@/assets/hero-dress-1.jpg";
 import heroDress2 from "@/assets/hero-dress-2.jpg";
@@ -23,7 +26,6 @@ interface HeroSlide {
 }
 
 const defaultSlides: HeroSlide[] = [
-  // Tipagem explícita para o fallback
   {
     id: "default-1",
     image_url: heroDress1,
@@ -44,18 +46,16 @@ const defaultSlides: HeroSlide[] = [
   },
 ];
 
-// NOVO: Hook para detecção de tela móvel (breakpoint padrão 768px, comum para mobile/tablet)
 const useIsMobile = (breakpoint = 768) => {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
-      // Determina se a largura da janela é menor que o breakpoint
       setIsMobile(window.innerWidth < breakpoint);
     };
 
     if (typeof window !== "undefined") {
-      handleResize(); // Executa na montagem
+      handleResize();
       window.addEventListener("resize", handleResize);
     }
 
@@ -73,7 +73,7 @@ const HeroSection = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [loading, setLoading] = useState(true);
-  const isMobile = useIsMobile(); // Usa o hook para detecção de mobile
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     fetchHeroSettings();
@@ -81,15 +81,15 @@ const HeroSection = () => {
 
   const fetchHeroSettings = async () => {
     try {
-      // NOVA CHAMADA: Busca as configurações do Hero na sua nova API
-      const response = await fetch(API_URL);
+      // 3. CORREÇÃO: Usamos a variável importada e concatenamos com o endpoint
+      // O API_URL já vem como "http://localhost:8000/api" do seu arquivo de config
+      const response = await fetch(`${API_URL}/hero`);
 
       if (!response.ok)
         throw new Error("Erro ao buscar configurações do hero.");
 
       const data = await response.json();
 
-      // Verifica se o objeto principal existe e se a propriedade slides é um array válido
       if (
         data &&
         data.slides &&
@@ -98,18 +98,16 @@ const HeroSection = () => {
       ) {
         setSlides(data.slides as HeroSlide[]);
       } else {
-        // Usa slides padrão como fallback
         setSlides(defaultSlides);
       }
     } catch (error) {
       console.error("Erro ao buscar configurações do hero:", error);
-      setSlides(defaultSlides); // Sempre usa o fallback em caso de erro
+      setSlides(defaultSlides);
     } finally {
       setLoading(false);
     }
   };
 
-  // ... (Auto carousel, nextSlide, prevSlide, scrollToCollection permanecem)
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
@@ -132,7 +130,6 @@ const HeroSection = () => {
   };
 
   if (loading) {
-    // ... (loading block permanece inalterado)
     return (
       <section
         id="inicio"
@@ -146,26 +143,19 @@ const HeroSection = () => {
     );
   }
 
-  // ... (o restante da renderização permanece inalterado)
-
   return (
     <section id="inicio" className="relative h-screen overflow-hidden">
-      {/* Carousel Container */}
       <div className="relative w-full h-full">
         {slides.map((slide, index) => {
-          // LÓGICA DE ESTILO MELHORADA E CONDICIONAL:
           const positionX = slide.image_position_x ?? 50;
           const positionY = slide.image_position_y ?? 50;
-          const zoomScale = (slide.image_zoom ?? 100) / 100; // Converte % para escala (e.g., 100% -> 1)
+          const zoomScale = (slide.image_zoom ?? 100) / 100;
 
-          // 1. Aplica estilos condicionais com base no isMobile
           const finalBackgroundPosition = isMobile
-            ? "center" // Resetar para o centro em mobile para enquadramento seguro
+            ? "center"
             : `${positionX}% ${positionY}%`;
 
-          const finalTransform = isMobile
-            ? "scale(1)" // Resetar zoom em mobile para evitar cortes
-            : `scale(${zoomScale})`;
+          const finalTransform = isMobile ? "scale(1)" : `scale(${zoomScale})`;
 
           const finalBackgroundSize = slide.image_fit || "cover";
 
@@ -176,22 +166,18 @@ const HeroSection = () => {
                 index === currentSlide ? "opacity-100" : "opacity-0"
               }`}
             >
-              {/* Background Image */}
               <div
                 className="absolute inset-0 bg-no-repeat transition-transform duration-300"
                 style={{
                   backgroundImage: `url(${slide.image_url})`,
                   backgroundSize: finalBackgroundSize,
                   backgroundPosition: finalBackgroundPosition,
-                  // CORREÇÃO CRÍTICA: Aplica o zoom via transform para correto enquadramento
                   transform: finalTransform,
                 }}
               />
 
-              {/* Overlay */}
               <div className="absolute inset-0 hero-overlay" />
 
-              {/* Content */}
               <div className="relative z-10 h-full flex items-center justify-center text-center px-4 py-20 md:py-24">
                 <div className="max-w-4xl mx-auto animate-fade-in -mt-12 md:-mt-16">
                   <h1 className="font-playfair text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
@@ -214,7 +200,6 @@ const HeroSection = () => {
         })}
       </div>
 
-      {/* Navigation Arrows */}
       <button
         onClick={prevSlide}
         className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-all duration-300 group"
@@ -229,7 +214,6 @@ const HeroSection = () => {
         <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
       </button>
 
-      {/* Slide Indicators */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex space-x-3">
         {slides.map((_, index) => (
           <button
@@ -244,7 +228,6 @@ const HeroSection = () => {
         ))}
       </div>
 
-      {/* Scroll Indicator */}
       <div className="absolute bottom-8 right-8 z-20 animate-bounce">
         <div className="w-6 h-10 border-2 border-white/50 rounded-full flex justify-center">
           <div className="w-1 h-3 bg-white/50 rounded-full mt-2 animate-pulse" />
