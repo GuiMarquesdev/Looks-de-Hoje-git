@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const API_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  import.meta.env.VITE_API_URL || "https://looksdehoje.com/api";
 
 // Cria e configura a instância do Axios
 const api = axios.create({

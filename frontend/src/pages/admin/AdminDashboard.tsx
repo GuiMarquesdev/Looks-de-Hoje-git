@@ -6,9 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Package, CheckCircle, Clock, BarChart3 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend } from "recharts";
-
-// Define a URL base da API
-const API_URL = "http://localhost:8000/api";
+import { API_URL } from "@/config/api";
 
 interface Stats {
   total: number;
