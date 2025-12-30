@@ -4,7 +4,7 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
-  base: "/", // <--- TEM QUE SER BARRA SOZINHA
+  base: "/", // <--- MANTENHA ASSIM (Barra Absoluta)
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

@@ -1,10 +1,9 @@
-// HeroManagement.tsx
+// src/pages/admin/HeroManagement.tsx
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -15,8 +14,8 @@ import {
   X,
   GripVertical,
   Upload,
-  ChevronUp, // NOVO: Ícone para mover para cima
-  ChevronDown, // NOVO: Ícone para mover para baixo
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -45,7 +44,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
-const API_URL = "http://localhost:8000/api";
+// CORREÇÃO: Importar a api configurada em vez de usar URL fixa
+import api from "../../config/api";
 
 // Interfaces baseadas no modelo Prisma
 interface HeroSlide {
@@ -78,6 +78,11 @@ interface HeroData {
   slides: HeroSlide[];
 }
 
+// Interface para resposta de upload
+interface UploadResponse {
+  url: string;
+}
+
 const slideSchema = z.object({
   title: z.string().optional(),
   subtitle: z.string().optional(),
@@ -86,7 +91,7 @@ const slideSchema = z.object({
   image_fit: z.enum(["cover", "contain", "fill"]).optional(),
 });
 
-// Função utilitária para reordenar arrays e recalcular a propriedade 'order'
+// Função utilitária para reordenar arrays
 const reorder = <T extends { order: number; id?: string | number }>(
   list: T[],
   startIndex: number,
@@ -96,7 +101,6 @@ const reorder = <T extends { order: number; id?: string | number }>(
   const [removed] = result.splice(startIndex, 1);
   result.splice(endIndex, 0, removed);
 
-  // Recalcula a propriedade 'order' para cada item na nova lista
   return result.map((item, index) => ({
     ...item,
     order: index + 1,
@@ -108,7 +112,6 @@ const HeroManagement = () => {
   const [loading, setLoading] = useState(true);
   const [selectedSlide, setSelectedSlide] = useState<HeroSlide | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
@@ -141,9 +144,9 @@ const HeroManagement = () => {
 
   const fetchHeroData = async () => {
     try {
-      const response = await fetch(`${API_URL}/hero`);
-      if (!response.ok) throw new Error("Falha ao carregar dados");
-      const data: HeroData = await response.json();
+      // CORREÇÃO: Usando api.get
+      const response = await api.get<HeroData>("/hero");
+      const data = response.data;
 
       const processedSlides = data.slides.map((slide, index) => {
         if (!slide.id) {
@@ -161,24 +164,10 @@ const HeroManagement = () => {
     }
   };
 
-  // Função auxiliar para salvar o slide no DB
   const saveSlideToDB = async (slideData: HeroSlide) => {
-    const token = localStorage.getItem("authToken"); // Pega o token
-    const payload = { ...slideData };
-
     try {
-      const response = await fetch(`${API_URL}/hero/slides/${slideData.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`, // Adiciona o Token
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) throw new Error("Falha ao salvar alterações");
-
+      // CORREÇÃO: Usando api.put
+      await api.put(`/hero/slides/${slideData.id}`, slideData);
       await fetchHeroData();
     } catch (error) {
       console.error("Erro ao salvar slide:", error);
@@ -186,45 +175,35 @@ const HeroManagement = () => {
     }
   };
 
-  // NOVO: Função para persistir a nova ordem dos slides no DB (REUSADA DA TENTATIVA D&D)
   const updateSlidesOrder = async (newSlides: HeroSlide[]) => {
     if (!heroData) return;
 
-    // Remove IDs temporários para o payload de envio
     const payloadSlides = newSlides.map((slide) => {
       const isTempId = slide.id && String(slide.id).startsWith("temp-");
       return {
         ...slide,
-        id: isTempId ? undefined : slide.id, // Remove temp ID se existir
+        id: isTempId ? undefined : slide.id,
       };
     });
 
     try {
       const updatePayload = {
         ...heroData.settings,
-        slides: payloadSlides, // O array já contém os novos 'order' values
+        slides: payloadSlides,
       };
 
-      // Chama o endpoint principal PUT /api/hero para salvar todas as configurações e slides
-      const response = await fetch(`${API_URL}/hero`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatePayload),
-      });
+      // CORREÇÃO: Usando api.put
+      await api.put("/hero", updatePayload);
 
-      if (!response.ok)
-        throw new Error("Falha ao salvar a nova ordem dos slides.");
-
-      await fetchHeroData(); // Recarrega os dados do servidor
+      await fetchHeroData();
       toast.success("Ordem dos slides salva com sucesso!");
     } catch (error) {
       toast.error("Erro ao salvar a ordem dos slides.");
       console.error("Error updating slide order:", error);
-      await fetchHeroData(); // Reverte o estado para o último estado salvo em caso de erro
+      await fetchHeroData();
     }
   };
 
-  // NOVO: Função para mover um slide para cima ou para baixo com botões
   const moveSlide = (currentIndex: number, direction: "up" | "down") => {
     if (!heroData) return;
 
@@ -232,35 +211,27 @@ const HeroManagement = () => {
     const targetIndex =
       direction === "up" ? currentIndex - 1 : currentIndex + 1;
 
-    // Verifica limites
     if (targetIndex < 0 || targetIndex >= sortedSlides.length) {
       return;
     }
 
-    // Usa a função reorder
     const newSlides = reorder(sortedSlides, currentIndex, targetIndex);
 
-    // 1. Atualiza o estado local imediatamente para feedback visual
     setHeroData({
       ...heroData,
       slides: newSlides,
     });
 
-    // 2. Persiste a nova ordem no backend
     updateSlidesOrder(newSlides);
   };
 
-  // Função para lidar com o upload e o erro blob
   const handleImageUpload = async (file: File) => {
     if (!selectedSlide) return;
-    const token = localStorage.getItem("authToken"); // Pega o token
 
-    // ... (código de preview igual ao anterior) ...
     const originalSlide = { ...selectedSlide };
     const tempImageUrl = URL.createObjectURL(file);
     const temporarySlide = { ...selectedSlide, image_url: tempImageUrl };
     setSelectedSlide(temporarySlide);
-    // ...
 
     setUploading(true);
 
@@ -268,21 +239,21 @@ const HeroManagement = () => {
       const formData = new FormData();
       formData.append("image", file);
 
-      const response = await fetch(`${API_URL}/hero/upload`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`, // IMPORTANTE: Token no Upload
-          // Nota: Não adicione Content-Type aqui, o fetch adiciona multipart/form-data automaticamente
-        },
-        body: formData,
-      });
+      // CORREÇÃO: Usando api.post com tipagem
+      const response = await api.post<UploadResponse>(
+        "/hero/upload",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
 
-      if (!response.ok) throw new Error("Falha no upload");
-
-      const data = await response.json();
-
-      // ... (resto da lógica igual) ...
-      const finalUpdatedSlide = { ...originalSlide, image_url: data.url };
+      const finalUpdatedSlide = {
+        ...originalSlide,
+        image_url: response.data.url,
+      };
       setSelectedSlide(finalUpdatedSlide);
       await saveSlideToDB(finalUpdatedSlide);
 
@@ -290,7 +261,7 @@ const HeroManagement = () => {
     } catch (error) {
       toast.error("Erro ao enviar imagem");
       console.error(error);
-      await fetchHeroData();
+      setSelectedSlide(originalSlide); // Reverte em caso de erro
     } finally {
       setUploading(false);
       URL.revokeObjectURL(tempImageUrl);
@@ -347,51 +318,23 @@ const HeroManagement = () => {
 
   const addNewSlide = async () => {
     try {
-      // 1. Pega o token correto (authToken)
-      const token = localStorage.getItem("authToken");
-
-      if (!token) {
-        toast.error("Você não está autenticado. Faça login novamente.");
-        return;
-      }
-
-      const response = await fetch(`${API_URL}/hero/slides`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          // 2. Envia o cabeçalho de Autorização
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          image_url:
-            "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80",
-          order: heroData ? heroData.slides.length + 1 : 1,
-          title: "Novo Slide",
-          subtitle: "Conteúdo do novo slide",
-          image_position_x: 50,
-          image_position_y: 50,
-          image_zoom: 100,
-          image_fit: "cover",
-        }),
+      // CORREÇÃO: Usando api.post
+      await api.post("/hero/slides", {
+        image_url:
+          "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80",
+        order: heroData ? heroData.slides.length + 1 : 1,
+        title: "Novo Slide",
+        subtitle: "Conteúdo do novo slide",
+        image_position_x: 50,
+        image_position_y: 50,
+        image_zoom: 100,
+        image_fit: "cover",
       });
-
-      // Se o token for inválido, o backend retorna 401
-      if (response.status === 401) {
-        toast.error("Sessão expirada. Faça login novamente.");
-        // Opcional: window.location.href = "/admin/login";
-        return;
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Falha ao criar slide");
-      }
 
       await fetchHeroData();
       toast.success("Novo slide adicionado!");
     } catch (error: any) {
-      toast.error(error.message || "Erro ao adicionar slide");
+      toast.error(error.response?.data?.message || "Erro ao adicionar slide");
       console.error(error);
     }
   };
@@ -400,28 +343,8 @@ const HeroManagement = () => {
     if (!heroData) return;
 
     try {
-      // 1. Recuperar o token
-      const token = localStorage.getItem("authToken");
-      if (!token) {
-        toast.error("Sessão expirada. Faça login novamente.");
-        return;
-      }
-
-      // 2. Adicionar headers de autorização
-      const response = await fetch(`${API_URL}/hero/slides/${id}`, {
-        method: "DELETE",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || "Falha ao remover slide no servidor."
-        );
-      }
+      // CORREÇÃO: Usando api.delete
+      await api.delete(`/hero/slides/${id}`);
 
       await fetchHeroData();
 
@@ -437,13 +360,12 @@ const HeroManagement = () => {
     }
   };
 
-  // REFATORADO: Agora usa saveSlideToDB
   const saveSlideChanges = async (values: z.infer<typeof slideSchema>) => {
     if (!selectedSlide) return;
 
     try {
       const updatedSlide = {
-        ...selectedSlide, // Contém a URL PERMANENTE do estado
+        ...selectedSlide,
         ...values,
       };
 
@@ -453,30 +375,6 @@ const HeroManagement = () => {
       toast.success("Alterações salvas com sucesso!");
     } catch (error) {
       toast.error("Erro ao salvar alterações");
-      console.error(error);
-    }
-  };
-
-  const updateSettings = async (is_active: boolean) => {
-    if (!heroData) return;
-
-    try {
-      const response = await fetch(`${API_URL}/hero`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...heroData.settings,
-          is_active,
-          slides: heroData.slides,
-        }),
-      });
-
-      if (!response.ok) throw new Error("Falha ao atualizar configurações");
-
-      await fetchHeroData();
-      toast.success("Configurações atualizadas!");
-    } catch (error) {
-      toast.error("Erro ao atualizar configurações");
       console.error(error);
     }
   };
@@ -510,7 +408,6 @@ const HeroManagement = () => {
               Gerencie os slides da vitrine principal do seu site
             </p>
           </div>
-          {/* O bloco que continha o switch "Ativo" e o botão "Configurações" foi removido. */}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -554,12 +451,8 @@ const HeroManagement = () => {
                           }}
                         >
                           <div className="flex items-center justify-between gap-3">
-                            {" "}
                             <div className="flex items-center gap-3 flex-1 min-w-0">
-                              {/* Removida a simulação D&D. Agora GripVertical serve apenas como ícone visual. */}
                               <GripVertical className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-
-                              {/* Conteúdo do slide (Imagem + Título) */}
                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                 <div
                                   className="w-16 h-10 rounded bg-cover bg-center flex-shrink-0"
@@ -572,9 +465,7 @@ const HeroManagement = () => {
                                 </span>
                               </div>
                             </div>
-                            {/* Ações: Mover, Editar e Deletar */}
                             <div className="flex gap-1 flex-shrink-0">
-                              {/* NOVO: Botões de Mover */}
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -604,12 +495,11 @@ const HeroManagement = () => {
                                 variant="ghost"
                                 size="sm"
                                 title="Editar Slide"
-                                // CORREÇÃO: Icone preto e estático no hover
                                 className="text-black hover:text-black"
                                 onClick={(e) => {
-                                  e.stopPropagation(); // Evita que o clique se propague para a seleção
+                                  e.stopPropagation();
                                   setSelectedSlide(slide);
-                                  setEditDialogOpen(true); // Abre o modal de edição
+                                  setEditDialogOpen(true);
                                 }}
                               >
                                 <Edit className="w-4 h-4" />

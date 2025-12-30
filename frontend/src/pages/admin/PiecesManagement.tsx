@@ -16,7 +16,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -66,14 +65,8 @@ import {
 } from "@/components/admin/MultipleImageUpload";
 import { ImageFramingTool } from "@/components/admin/ImageFramingTool";
 
-const API_URL = "http://localhost:8000/api";
-const PIECES_URL = `${API_URL}/pieces`;
-const CATEGORIES_URL = `${API_URL}/categories`;
-const UPLOAD_URL = `${API_URL}/pieces/upload-images`;
-
-// Helper para pegar token
-const getToken = () =>
-  localStorage.getItem("token") || localStorage.getItem("authToken");
+// CORREÇÃO: Importar a instância api configurada (remove localhost)
+import api from "../../config/api";
 
 // Interfaces
 interface Piece {
@@ -97,6 +90,11 @@ interface Piece {
 interface Category {
   id: string;
   name: string;
+}
+
+// Interface para resposta de upload
+interface UploadResponse {
+  urls: string[];
 }
 
 // Schema de Validação
@@ -156,11 +154,10 @@ const PiecesManagement = () => {
 
   const fetchPieces = async () => {
     try {
-      const response = await fetch(PIECES_URL);
-      if (!response.ok) throw new Error("Erro ao buscar peças.");
-      const data = await response.json();
+      // CORREÇÃO: Usando api.get do axios
+      const response = await api.get<Piece[]>("/pieces");
 
-      const formattedData = data.map((p: any) => ({
+      const formattedData = response.data.map((p: any) => ({
         ...p,
         id: String(p.id),
         category_id: String(p.category_id),
@@ -177,15 +174,11 @@ const PiecesManagement = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch(CATEGORIES_URL);
-      if (!response.ok) throw new Error("Erro ao buscar categorias.");
-      const data = await response.json();
-
-      const formattedCategories = data.map((c: any) => ({
+      const response = await api.get<Category[]>("/categories");
+      const formattedCategories = response.data.map((c: any) => ({
         ...c,
         id: String(c.id),
       }));
-
       setCategories(formattedCategories || []);
     } catch (error) {
       console.error(error);
@@ -193,22 +186,9 @@ const PiecesManagement = () => {
   };
 
   const toggleStatus = async (piece: Piece) => {
-    const token = getToken();
-    if (!token) return toast.error("Faça login para continuar.");
-
     try {
       const newStatus = piece.status === "available" ? "rented" : "available";
-      const response = await fetch(`${PIECES_URL}/${piece.id}/toggle-status`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      if (!response.ok) throw new Error("Erro ao alterar status");
+      await api.put(`/pieces/${piece.id}/toggle-status`, { status: newStatus });
       toast.success("Status atualizado!");
       fetchPieces();
     } catch (error) {
@@ -217,20 +197,10 @@ const PiecesManagement = () => {
   };
 
   const deletePiece = async (piece: Piece) => {
-    const token = getToken();
-    if (!token) return toast.error("Faça login para continuar.");
     if (!window.confirm(`Excluir "${piece.name}"?`)) return;
 
     try {
-      const response = await fetch(`${PIECES_URL}/${piece.id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      });
-
-      if (!response.ok) throw new Error("Erro ao excluir");
+      await api.delete(`/pieces/${piece.id}`);
       toast.success("Peça removida");
       fetchPieces();
     } catch (error) {
@@ -244,34 +214,27 @@ const PiecesManagement = () => {
       .map((img) => img.file) as File[];
 
     if (filesToUpload.length === 0) return [];
-    const token = getToken();
-    if (!token) throw new Error("Sessão expirada.");
 
     const formData = new FormData();
     filesToUpload.forEach((file) => formData.append("files[]", file));
 
     try {
-      const response = await fetch(UPLOAD_URL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error("Falha no upload");
-      const data = await response.json();
-      return data.urls || [];
+      const response = await api.post<UploadResponse>(
+        "/pieces/upload-images",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      return response.data.urls || [];
     } catch (error) {
       throw error;
     }
   };
 
   const onSubmit = async (values: PieceFormValues) => {
-    const token = getToken();
-    if (!token) return toast.error("Sessão expirada.");
-
     try {
       setUploading(true);
       const newPermanentUrls = await uploadNewImages(productImages);
@@ -316,35 +279,28 @@ const PiecesManagement = () => {
         price: priceForApi,
       };
 
-      const url = editingPiece
-        ? `${PIECES_URL}/${editingPiece.id}`
-        : PIECES_URL;
-      const method = editingPiece ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-        body: JSON.stringify(pieceData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (response.status === 422 && errorData.errors) {
-          const msgs = Object.values(errorData.errors).flat().join("\n");
-          throw new Error(`Validação falhou:\n${msgs}`);
-        }
-        throw new Error(errorData.message || "Erro ao salvar");
+      if (editingPiece) {
+        await api.put(`/pieces/${editingPiece.id}`, pieceData);
+        toast.success("Peça atualizada!");
+      } else {
+        await api.post("/pieces", pieceData);
+        toast.success("Peça adicionada!");
       }
 
-      toast.success(editingPiece ? "Peça atualizada!" : "Peça adicionada!");
       setIsDialogOpen(false);
       fetchPieces();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro desconhecido");
+    } catch (error: any) {
+      // Tratamento de erro robusto
+      if (error.response?.status === 422 && error.response.data.errors) {
+        const msgs = Object.values(error.response.data.errors)
+          .flat()
+          .join("\n");
+        toast.error(`Validação falhou:\n${msgs}`);
+      } else {
+        toast.error(
+          error.response?.data?.message || error.message || "Erro ao salvar"
+        );
+      }
     } finally {
       setUploading(false);
     }
@@ -714,7 +670,6 @@ const PiecesManagement = () => {
                 <TableRow key={piece.id}>
                   <TableCell>
                     {(() => {
-                      // CORREÇÃO: Tenta pegar image_url OU a primeira imagem do array
                       const displayImage =
                         piece.image_url ||
                         (piece.images && piece.images.length > 0
