@@ -20,7 +20,12 @@ return [
     'allowed_methods' => ['*'],
 
     // Adicione aqui a URL do seu frontend (ex: http://localhost:5173 para Vite)
-    'allowed_origins' => ['http://localhost:5173', 'http://localhost:3000'],
+    'allowed_origins' => [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://seudominio.com.br', // Adicione o seu domínio aqui (HTTPS é importante)
+    'http://seudominio.com.br',  // Adicione HTTP se não tiver SSL ainda
+],
 
     'allowed_origins_patterns' => [],
 
