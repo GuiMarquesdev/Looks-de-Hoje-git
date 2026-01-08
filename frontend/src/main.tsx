@@ -1,5 +1,5 @@
 // Caminho: frontend/src/main.tsx
-
+console.log("Versão Produção Atualizada - HostGator");
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";

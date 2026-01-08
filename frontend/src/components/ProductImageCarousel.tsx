@@ -1,5 +1,3 @@
-// guimarquesdev/looks-de-hoje-git/Looks-de-Hoje-git-09219f1fd0a1688ed42e10d4ed53d02dea107fd6/frontend/src/components/ProductImageCarousel.tsx
-
 import React from "react";
 import {
   Carousel,
@@ -8,22 +6,19 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-// ADICIONADO: Importar a URL base da API para construir URLs absolutas
 import { API_URL } from "@/config/api";
 
-// CORRIGIDO: Interface atualizada para incluir as propriedades de enquadramento (camelCase)
 interface ProductImage {
-  url: string | undefined | null; // Permitir nulo/indefinido para segurança
+  url: string | undefined | null;
   order: number;
-  imagePositionX?: number; // Propriedade opcional
-  imagePositionY?: number; // Propriedade opcional
-  imageZoom?: number; // Propriedade opcional
+  imagePositionX?: number;
+  imagePositionY?: number;
+  imageZoom?: number;
 }
 
 interface ProductImageCarouselProps {
   images: ProductImage[];
   productName: string;
-  // Propriedades padrão para a primeira imagem (ou a única imagem)
   imagePositionX?: number;
   imagePositionY?: number;
   imageZoom?: number;
@@ -38,15 +33,12 @@ const ProductImageCarousel: React.FC<ProductImageCarouselProps> = ({
   imageZoom = 100,
   className = "",
 }) => {
-  // Ordenar imagens pela ordem
   const sortedImages = [...images].sort((a, b) => a.order - b.order);
 
-  // Determinar a URL base para ativos (imagens)
   const imageBaseUrl = API_URL.endsWith("/api")
     ? API_URL.substring(0, API_URL.lastIndexOf("/api"))
     : API_URL;
 
-  // Função auxiliar para garantir que a URL da imagem seja absoluta/completa (Correção do Uncaught TypeError)
   const ensureAbsoluteUrl = (url: string | undefined | null): string => {
     if (!url || typeof url !== "string" || url.length === 0) {
       return "";
@@ -58,7 +50,6 @@ const ProductImageCarousel: React.FC<ProductImageCarouselProps> = ({
     return `${imageBaseUrl}/${normalizedUrl}`;
   };
 
-  // Se não houver imagens, mostra um placeholder
   if (!sortedImages.length) {
     return (
       <div
@@ -69,7 +60,7 @@ const ProductImageCarousel: React.FC<ProductImageCarouselProps> = ({
     );
   }
 
-  // Se houver apenas uma imagem
+  // CASO 1: Apenas uma imagem
   if (sortedImages.length === 1) {
     const image = sortedImages[0];
     const imageUrl = ensureAbsoluteUrl(image.url);
@@ -83,7 +74,6 @@ const ProductImageCarousel: React.FC<ProductImageCarouselProps> = ({
       );
     }
 
-    // Usa as props do componente como fallback para a imagem única
     const singleImagePositionX = image.imagePositionX ?? imagePositionX;
     const singleImagePositionY = image.imagePositionY ?? imagePositionY;
     const singleImageZoom = image.imageZoom ?? imageZoom;
@@ -95,7 +85,8 @@ const ProductImageCarousel: React.FC<ProductImageCarouselProps> = ({
         <div
           className="w-full h-full"
           style={{
-            backgroundImage: `url(${imageUrl})`, // URL CORRIGIDA
+            // CORREÇÃO AQUI: Aspas adicionadas '${imageUrl}'
+            backgroundImage: `url('${imageUrl}')`,
             backgroundSize: `${singleImageZoom}%`,
             backgroundPosition: `${singleImagePositionX}% ${singleImagePositionY}%`,
             backgroundRepeat: "no-repeat",
@@ -105,16 +96,15 @@ const ProductImageCarousel: React.FC<ProductImageCarouselProps> = ({
     );
   }
 
-  // Se houver múltiplas imagens (carrossel)
+  // CASO 2: Várias imagens (Carrossel)
   return (
     <div className={`relative ${className}`}>
       <Carousel className="w-full">
         <CarouselContent>
           {sortedImages.map((image, index) => {
             const imageUrl = ensureAbsoluteUrl(image.url);
-            if (!imageUrl) return null; // Pula slides sem URL válida
+            if (!imageUrl) return null;
 
-            // Lógica de fallback para carrossel: usa a prop da imagem, senão usa a prop do componente (apenas para o index 0) ou um valor padrão (50/100)
             const currentPositionX =
               image.imagePositionX ?? (index === 0 ? imagePositionX : 50);
             const currentPositionY =
@@ -128,7 +118,8 @@ const ProductImageCarousel: React.FC<ProductImageCarouselProps> = ({
                   <div
                     className="w-full h-full"
                     style={{
-                      backgroundImage: `url(${imageUrl})`, // URL CORRIGIDA
+                      // CORREÇÃO AQUI TAMBÉM: Aspas adicionadas '${imageUrl}'
+                      backgroundImage: `url('${imageUrl}')`,
                       backgroundSize: `${currentZoom}%`,
                       backgroundPosition: `${currentPositionX}% ${currentPositionY}%`,
                       backgroundRepeat: "no-repeat",
@@ -143,7 +134,6 @@ const ProductImageCarousel: React.FC<ProductImageCarouselProps> = ({
         <CarouselNext className="right-2" />
       </Carousel>
 
-      {/* Image counter */}
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
         {sortedImages.length} fotos
       </div>

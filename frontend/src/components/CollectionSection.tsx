@@ -1,18 +1,20 @@
 // src/components/CollectionSection.tsx
 
 import { useState, useEffect } from "react";
-// REMOVER: import { supabase } from "@/integrations/supabase/client"; // REMOVIDO
 import { Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ProductModal from "@/components/ProductModal";
 import whatsappIcon from "@/assets/whatsapp-icon.svg";
 
-// Importa a URL base da API
-const API_URL = "http://localhost:8000/api";
+// --- CORREÇÃO: Importe a API configurada em vez de criar uma constante fixa ---
+import { API_URL } from "@/config/api";
+// OU, se preferir garantir manualmente agora:
+// const API_URL = "https://lookdehoje.com/api";
+// ---------------------------------------------------------------------------
 
-// 🚨 NOVO: Define a constante para o limite inicial de exibição
 const INITIAL_DISPLAY_LIMIT = 6;
+// ... resto do código continua igua
 
 interface Product {
   id: string;
@@ -262,7 +264,8 @@ const CollectionSection = () => {
                             <div
                               className="w-full h-full transition-transform duration-500 group-hover:scale-105"
                               style={{
-                                backgroundImage: `url(${imageUrl})`,
+                                // CORREÇÃO: Aspas adicionadas dentro do url('...') para suportar nomes com espaços
+                                backgroundImage: `url('${imageUrl}')`,
                                 backgroundSize: `${product.image_zoom ?? 100}%`,
                                 backgroundPosition: `${
                                   product.image_position_x ?? 50
