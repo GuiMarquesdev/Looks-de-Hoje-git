@@ -6,7 +6,7 @@ const Footer = () => {
     { name: "Início", href: "#inicio" },
     { name: "Coleção", href: "#colecao" },
     { name: "Regras de Aluguel", href: "#regras" },
-    { name: "Contato", href: "#contato" }
+    { name: "Contato", href: "#contato" },
   ];
 
   const socialLinks = [
@@ -14,14 +14,14 @@ const Footer = () => {
       name: "WhatsApp",
       icon: <img src={whatsappIcon} alt="WhatsApp" className="w-5 h-5" />,
       href: "https://wa.me/71992771527",
-      color: "hover:text-green-500"
+      color: "hover:text-green-500",
     },
     {
       name: "Instagram",
       icon: <Instagram className="w-5 h-5" />,
-      href: "https://www.instagram.com/looksdehojebr",
-      color: "hover:text-pink-500"
-    }
+      href: "https://www.instagram.com/looksdehojebrecho/",
+      color: "hover:text-pink-500",
+    },
   ];
 
   const scrollToSection = (sectionId: string) => {
@@ -39,9 +39,10 @@ const Footer = () => {
               LooksdeHoje
             </h3>
             <p className="font-montserrat text-background/80 leading-relaxed mb-6">
-              Elegância e sofisticação para suas ocasiões especiais. Alugue looks únicos e vista-se com estilo sem comprometer o orçamento.
+              Elegância e sofisticação para suas ocasiões especiais. Alugue
+              looks únicos e vista-se com estilo sem comprometer o orçamento.
             </p>
-            
+
             {/* Social Links */}
             <div className="flex justify-center md:justify-start space-x-4">
               {socialLinks.map((social) => (
@@ -85,8 +86,10 @@ const Footer = () => {
             </h4>
             <div className="space-y-4">
               <div>
-                <h5 className="font-montserrat font-medium text-background mb-1">WhatsApp:</h5>
-                <a 
+                <h5 className="font-montserrat font-medium text-background mb-1">
+                  WhatsApp:
+                </h5>
+                <a
                   href="https://wa.me/71992771527"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -95,21 +98,26 @@ const Footer = () => {
                   (71) 99277-1527
                 </a>
               </div>
-              
+
               <div>
-                <h5 className="font-montserrat font-medium text-background mb-1">E-mail:</h5>
-                <a 
+                <h5 className="font-montserrat font-medium text-background mb-1">
+                  E-mail:
+                </h5>
+                <a
                   href="mailto:lookdehojebrecho@gmail.com"
                   className="font-montserrat text-background/80 hover:text-primary transition-colors"
                 >
                   lookdehojebrecho@gmail.com
                 </a>
               </div>
-              
+
               <div>
-                <h5 className="font-montserrat font-medium text-background mb-1">Endereço:</h5>
+                <h5 className="font-montserrat font-medium text-background mb-1">
+                  Endereço:
+                </h5>
                 <address className="font-montserrat text-background/80 not-italic">
-                  Av. Antônio Carlos Magalhães, 2501 - Brotas<br />
+                  Av. Antônio Carlos Magalhães, 2501 - Brotas
+                  <br />
                   Salvador - BA, 40280-901
                 </address>
               </div>
@@ -137,7 +145,7 @@ const Footer = () => {
 
       {/* Decorative Elements */}
       <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-gold opacity-50" />
-      
+
       {/* Background Pattern */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-8 left-8 w-2 h-2 bg-primary/20 rounded-full animate-pulse" />

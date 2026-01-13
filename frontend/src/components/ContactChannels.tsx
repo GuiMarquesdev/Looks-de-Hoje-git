@@ -10,20 +10,21 @@ interface ContactChannelsProps {
   productName?: string;
 }
 
-const ContactChannels = ({ 
-  className = "", 
-  size = "md", 
+const ContactChannels = ({
+  className = "",
+  size = "md",
   variant = "default",
   message,
-  productName
+  productName,
 }: ContactChannelsProps) => {
   const whatsappNumber = "71992771527";
-  const instagramUrl = "https://www.instagram.com/looksdehojebr";
+  const instagramUrl = "https://www.instagram.com/looksdehojebrecho/";
   const email = "lookdehojebrecho@gmail.com";
 
   const getWhatsAppMessage = () => {
     if (message) return message;
-    if (productName) return `Olá! Gostaria de alugar o ${productName} do LooksdeHoje. Poderia me dar mais informações?`;
+    if (productName)
+      return `Olá! Gostaria de alugar o ${productName} do LooksdeHoje. Poderia me dar mais informações?`;
     return "Olá! Gostaria de saber mais sobre o aluguel de peças do LooksdeHoje.";
   };
 
@@ -33,13 +34,17 @@ const ContactChannels = ({
   };
 
   const getEmailBody = () => {
-    if (productName) return `Olá! Gostaria de alugar a peça "${productName}". Poderia me dar mais informações?`;
+    if (productName)
+      return `Olá! Gostaria de alugar a peça "${productName}". Poderia me dar mais informações?`;
     return "Olá! Gostaria de saber mais sobre o aluguel de peças.";
   };
 
   const handleWhatsApp = () => {
     const whatsappMessage = encodeURIComponent(getWhatsAppMessage());
-    window.open(`https://wa.me/${whatsappNumber}?text=${whatsappMessage}`, "_blank");
+    window.open(
+      `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`,
+      "_blank"
+    );
   };
 
   const handleInstagram = () => {
@@ -55,19 +60,19 @@ const ContactChannels = ({
   const buttonSizeClasses = {
     sm: "px-3 py-2 text-sm",
     md: "px-4 py-3",
-    lg: "px-6 py-4 text-lg"
+    lg: "px-6 py-4 text-lg",
   };
 
   const iconSizeClasses = {
     sm: "w-4 h-4",
-    md: "w-5 h-5", 
-    lg: "w-6 h-6"
+    md: "w-5 h-5",
+    lg: "w-6 h-6",
   };
 
   const containerClasses = {
     default: "flex flex-col sm:flex-row gap-3 justify-center",
     outline: "flex flex-col sm:flex-row gap-3 justify-center",
-    compact: "flex gap-2 justify-center"
+    compact: "flex gap-2 justify-center",
   };
 
   return (
@@ -77,7 +82,11 @@ const ContactChannels = ({
         onClick={handleWhatsApp}
         className={`${buttonSizeClasses[size]} bg-green-600 hover:bg-green-700 text-white font-montserrat font-semibold rounded-full transition-all duration-300 hover:-translate-y-0.5 shadow-lg`}
       >
-        <img src={whatsappIcon} alt="WhatsApp" className={`${iconSizeClasses[size]} mr-2`} />
+        <img
+          src={whatsappIcon}
+          alt="WhatsApp"
+          className={`${iconSizeClasses[size]} mr-2`}
+        />
         {variant === "compact" ? "" : "WhatsApp"}
       </Button>
 

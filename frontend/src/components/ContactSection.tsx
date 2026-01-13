@@ -16,7 +16,7 @@ const ContactSection = () => {
       title: "Instagram",
       info: "@looksdehojebrecho",
       action: () =>
-        window.open("https://www.instagram.com/looksdehojebr", "_blank"),
+        window.open("https://www.instagram.com/looksdehojebrecho/", "_blank"),
       actionText: "Seguir no Instagram",
     },
     {
