@@ -83,9 +83,11 @@ interface UploadResponse {
   url: string;
 }
 
+// Schema simplificado (removidos campos que não serão mais editados)
 const slideSchema = z.object({
   title: z.string().optional(),
   subtitle: z.string().optional(),
+  // Campos removidos da validação visual, mas mantidos opcionais caso venham do banco
   cta_text: z.string().optional(),
   cta_link: z.string().url().optional().or(z.literal("")),
   image_fit: z.enum(["cover", "contain", "fill"]).optional(),
@@ -144,7 +146,6 @@ const HeroManagement = () => {
 
   const fetchHeroData = async () => {
     try {
-      // CORREÇÃO: Usando api.get
       const response = await api.get<HeroData>("/hero");
       const data = response.data;
 
@@ -166,7 +167,6 @@ const HeroManagement = () => {
 
   const saveSlideToDB = async (slideData: HeroSlide) => {
     try {
-      // CORREÇÃO: Usando api.put
       await api.put(`/hero/slides/${slideData.id}`, slideData);
       await fetchHeroData();
     } catch (error) {
@@ -192,7 +192,6 @@ const HeroManagement = () => {
         slides: payloadSlides,
       };
 
-      // CORREÇÃO: Usando api.put
       await api.put("/hero", updatePayload);
 
       await fetchHeroData();
@@ -239,7 +238,6 @@ const HeroManagement = () => {
       const formData = new FormData();
       formData.append("image", file);
 
-      // CORREÇÃO: Usando api.post com tipagem
       const response = await api.post<UploadResponse>(
         "/hero/upload",
         formData,
@@ -318,7 +316,6 @@ const HeroManagement = () => {
 
   const addNewSlide = async () => {
     try {
-      // CORREÇÃO: Usando api.post
       await api.post("/hero/slides", {
         image_url:
           "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80",
@@ -343,7 +340,6 @@ const HeroManagement = () => {
     if (!heroData) return;
 
     try {
-      // CORREÇÃO: Usando api.delete
       await api.delete(`/hero/slides/${id}`);
 
       await fetchHeroData();
@@ -643,24 +639,7 @@ const HeroManagement = () => {
               {/* Framing Controls */}
               <div className="space-y-4">
                 <h3 className="font-semibold">Ajustes de Enquadramento</h3>
-
-                <div>
-                  <label className="text-sm font-medium mb-3 flex items-center justify-between">
-                    <span>Posição X</span>
-                    <span className="text-xs text-muted-foreground">
-                      {selectedSlide.image_position_x || 50}%
-                    </span>
-                  </label>
-                  <Slider
-                    value={[selectedSlide.image_position_x || 50]}
-                    onValueChange={(v) =>
-                      updateSlidePosition("image_position_x", v[0])
-                    }
-                    max={100}
-                    step={1}
-                    className="w-full"
-                  />
-                </div>
+                {/* REMOVIDO: Ajuste de Posição X conforme solicitado */}
 
                 <div>
                   <label className="text-sm font-medium mb-3 flex items-center justify-between">
@@ -744,67 +723,7 @@ const HeroManagement = () => {
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="cta_text"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Texto do Botão (CTA)</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Ex: Saiba Mais" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="cta_link"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Link do Botão</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            placeholder="https://..."
-                            type="url"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="image_fit"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Ajuste da Imagem</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione o ajuste" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="cover">
-                              Cover (Preencher)
-                            </SelectItem>
-                            <SelectItem value="contain">
-                              Contain (Conter)
-                            </SelectItem>
-                            <SelectItem value="fill">Fill (Esticar)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {/* REMOVIDO: Campos CTA Text, CTA Link e Image Fit conforme solicitado */}
 
                   <div className="flex gap-3 pt-4">
                     <Button
