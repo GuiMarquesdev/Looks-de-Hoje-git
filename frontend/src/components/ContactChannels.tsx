@@ -43,7 +43,7 @@ const ContactChannels = ({
     const whatsappMessage = encodeURIComponent(getWhatsAppMessage());
     window.open(
       `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`,
-      "_blank"
+      "_blank",
     );
   };
 

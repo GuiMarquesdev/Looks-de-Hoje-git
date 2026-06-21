@@ -5,15 +5,15 @@ const RulesSection = () => {
   const rules = [
     {
       icon: <Clock className="w-8 h-8" />,
-      title: "Prazo de Aluguel",
+      title: "Período de Locação",
       description: "Peças podem ser alugadas por 1 a 7 dias, com possibilidade de extensão mediante disponibilidade.",
-      details: ["Mínimo: 1 dia", "Máximo: 7 dias", "Extensão sob consulta"]
+      details: ["Locação mínima: 5 dias corridos", "Locação máxima: 20 dias corridos", "Prorrogação mediante solicitação prévia e disponibilidade da peça"]
     },
     {
       icon: <Truck className="w-8 h-8" />,
       title: "Entrega e Retirada",
       description: "Entregamos em toda a região metropolitana ou você pode retirar em nossa loja física.",
-      details: ["Entrega grátis acima de R$ 150", "Retirada na loja sem custo", "Horário: 9h às 18h"]
+      details: ["Entrega por motoboy parceiro com valor calculado conforme a região", "Retirada e devolução mediante agendamento","Atendimento de segunda a sexta-feira, das 10h às 16h"]
     },
     {
       icon: <Shield className="w-8 h-8" />,
