@@ -1,0 +1,6 @@
+{
+  "name": "LooksdeHoje",
+  "description": "Aluguel de Roupas Femininas - Catálogo exclusivo de vestidos e peças para todas as ocasiões com painel administrativo",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
