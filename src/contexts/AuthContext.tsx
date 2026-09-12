@@ -7,6 +7,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
+import api from "../config/api";
 
 // 1. Definição da Interface
 export interface AuthUser {
@@ -61,7 +62,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(userData);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await api.post("/logout");
+    } catch (e) {
+      // Non-blocking if offline or expired
+    }
     localStorage.removeItem("authToken");
     localStorage.removeItem("authUser");
     setIsAuthenticated(false);

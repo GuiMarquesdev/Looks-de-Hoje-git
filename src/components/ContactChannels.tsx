@@ -1,6 +1,7 @@
 import { Instagram } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import whatsappIcon from "@/assets/whatsapp-icon.svg";
+import { useStoreSettings } from "@/contexts/StoreSettingsContext";
 
 interface ContactChannelsProps {
   className?: string;
@@ -17,26 +18,23 @@ const ContactChannels = ({
   message,
   productName,
 }: ContactChannelsProps) => {
-  const whatsappNumber = "71992771527";
-  const instagramUrl = "https://www.instagram.com/looksdehojebrecho/";
+  const { getWhatsAppUrl, getInstagramUrl, settings } = useStoreSettings();
 
   const getWhatsAppMessage = () => {
     if (message) return message;
     if (productName)
-      return `Olá! Gostaria de alugar o ${productName} do LooksdeHoje. Poderia me dar mais informações?`;
-    return "Olá! Gostaria de saber mais sobre o aluguel de peças do LooksdeHoje.";
+      return `Olá! Gostaria de alugar o ${productName} do ${settings.store_name || "LooksdeHoje"}. Poderia me dar mais informações?`;
+    return `Olá! Gostaria de saber mais sobre o aluguel de peças do ${settings.store_name || "LooksdeHoje"}.`;
   };
 
   const handleWhatsApp = () => {
-    const whatsappMessage = encodeURIComponent(getWhatsAppMessage());
-    window.open(
-      `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`,
-      "_blank",
-    );
+    const url = getWhatsAppUrl(getWhatsAppMessage());
+    window.open(url, "_blank");
   };
 
   const handleInstagram = () => {
-    window.open(instagramUrl, "_blank");
+    const url = getInstagramUrl();
+    window.open(url, "_blank");
   };
 
   const buttonSizeClasses = {

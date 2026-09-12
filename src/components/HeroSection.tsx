@@ -1,7 +1,7 @@
 // src/components/HeroSection.tsx
 
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Sparkles, ArrowDown, ShieldCheck, Clock, Award } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowDown, ShieldCheck, Clock, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { API_URL } from "@/config/api";
 
@@ -219,12 +219,6 @@ const HeroSection = () => {
       {/* Main Content Area */}
       <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-12 pt-32 pb-16 md:pt-40 md:pb-24 flex-1 flex flex-col justify-center">
         <div className="max-w-3xl">
-          {/* Eyebrow badge */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-6 text-amber-300 font-montserrat text-xs tracking-wider uppercase shadow-md animate-fade-in">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span className="font-semibold">Coleção Exclusiva & Aluguel de Luxo</span>
-          </div>
-
           {/* Slide Title with High-Contrast Typography */}
           <h1
             key={`title-${currentSlide}`}

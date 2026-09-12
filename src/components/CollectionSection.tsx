@@ -1,20 +1,16 @@
 // src/components/CollectionSection.tsx
 
-import { useState, useEffect } from "react";
-import { Filter, Eye, Sparkles } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Filter, Eye, Sparkles, Search, X, ArrowUpDown, RotateCcw, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import ProductModal from "@/components/ProductModal";
 import whatsappIcon from "@/assets/whatsapp-icon.svg";
-
-// --- CORREÇÃO: Importe a API configurada em vez de criar uma constante fixa ---
+import { useStoreSettings } from "@/contexts/StoreSettingsContext";
 import { API_URL } from "@/config/api";
-// OU, se preferir garantir manualmente agora:
-// const API_URL = "https://lookdehoje.com/api";
-// ---------------------------------------------------------------------------
 
 const INITIAL_DISPLAY_LIMIT = 6;
-// ... resto do código continua igua
 
 interface Product {
   id: string;
@@ -31,7 +27,7 @@ interface Product {
   measurements?: Record<string, string>;
   created_at: string;
   updated_at: string;
-  price?: number; // 🚨 ALTERADO: Adição do campo de preço
+  price?: number;
 }
 
 interface Category {
@@ -41,15 +37,8 @@ interface Category {
   updated_at: string;
 }
 
-interface StoreSettings {
-  whatsapp_url?: string;
-  // Adicione outros campos necessários aqui (ex: email, instagram_url)
-}
-
-// 🚨 NOVO: Função para formatar o preço em Reais (R$)
 const formatPrice = (price?: number) => {
   if (price === undefined || price === null) return "Preço sob consulta";
-  // Formatador para o padrão brasileiro (R$)
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
@@ -58,53 +47,47 @@ const formatPrice = (price?: number) => {
 };
 
 const CollectionSection = () => {
+  const { getWhatsAppUrl, settings } = useStoreSettings();
+
   const [activeCategory, setActiveCategory] = useState("todos");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "available" | "rented">("all");
+  const [sortBy, setSortBy] = useState<"recent" | "price_asc" | "price_desc" | "name_asc">("recent");
+
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  // Tipagem ajustada para a nova interface
-  const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(
-    null
-  );
-  // 🚨 NOVO: Estado para controlar o limite de peças a serem exibidas
   const [displayLimit, setDisplayLimit] = useState(INITIAL_DISPLAY_LIMIT);
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  // 🚨 NOVO: Reseta o limite de exibição quando a categoria ativa muda
+  // Reseta o limite de exibição sempre que os filtros mudarem
   useEffect(() => {
     setDisplayLimit(INITIAL_DISPLAY_LIMIT);
-  }, [activeCategory]);
+  }, [activeCategory, searchTerm, statusFilter, sortBy]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
 
-      // 1. Fetch Pieces (Peças já vêm com a Categoria aninhada do backend)
-      const piecesResponse = await fetch(`${API_URL}/pieces`);
-      if (!piecesResponse.ok) throw new Error("Erro ao buscar peças");
-      const piecesData: Product[] = await piecesResponse.json();
+      const [piecesResponse, categoriesResponse] = await Promise.all([
+        fetch(`${API_URL}/pieces`),
+        fetch(`${API_URL}/categories`),
+      ]);
 
-      // 2. Fetch Categories
-      const categoriesResponse = await fetch(`${API_URL}/categories`);
-      if (!categoriesResponse.ok) throw new Error("Erro ao buscar categorias");
-      const categoriesData: Category[] = await categoriesResponse.json();
-
-      // 3. Fetch Store Settings for WhatsApp
-      const settingsResponse = await fetch(`${API_URL}/admin/settings`); // Reutiliza endpoint do admin
-      // Se a resposta não for OK, apenas loga e continua sem settings, já que é a parte pública
-      let settingsData: StoreSettings | null = null;
-      if (settingsResponse.ok) {
-        settingsData = await settingsResponse.json();
-        setStoreSettings(settingsData);
+      if (piecesResponse.ok) {
+        const piecesData: Product[] = await piecesResponse.json();
+        setProducts(piecesData);
       }
 
-      setProducts(piecesData);
-      setCategories(categoriesData);
+      if (categoriesResponse.ok) {
+        const categoriesData: Category[] = await categoriesResponse.json();
+        setCategories(categoriesData);
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -112,60 +95,89 @@ const CollectionSection = () => {
     }
   };
 
-  // ... (Restante do componente, filtros, handlers e renderização, permanece inalterado)
-  const allCategories = [
+  const allCategories = useMemo(() => [
     { id: "todos", name: "Todos", count: products.length },
     ...categories.map((cat) => ({
       ...cat,
-      // Precisa recalcular o count no frontend ou receber do backend
       count: products.filter((p) => p.category_id === cat.id).length,
     })),
-  ];
+  ], [categories, products]);
 
-  const filteredProducts =
-    activeCategory === "todos"
-      ? products
-      : products.filter((product) => product.category_id === activeCategory);
+  // Filtragem e ordenação dos produtos
+  const filteredAndSortedProducts = useMemo(() => {
+    let result = [...products];
 
-  // 🚨 NOVO: Aplica o limite de exibição aos produtos filtrados
-  const displayedProducts = filteredProducts.slice(0, displayLimit);
-  const hasMoreProducts = filteredProducts.length > displayLimit;
+    // 1. Filtro de Categoria
+    if (activeCategory !== "todos") {
+      result = result.filter((p) => p.category_id === activeCategory);
+    }
+
+    // 2. Filtro de Status (Disponível / Alugado)
+    if (statusFilter === "available") {
+      result = result.filter((p) => p.status === "available");
+    } else if (statusFilter === "rented") {
+      result = result.filter((p) => p.status === "rented");
+    }
+
+    // 3. Filtro de Busca (Nome, Descrição, Categoria)
+    const cleanSearch = searchTerm.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (cleanSearch) {
+      result = result.filter((p) => {
+        const nameNorm = (p.name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const descNorm = (p.description || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const catNorm = (p.category?.name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return nameNorm.includes(cleanSearch) || descNorm.includes(cleanSearch) || catNorm.includes(cleanSearch);
+      });
+    }
+
+    // 4. Ordenação
+    if (sortBy === "price_asc") {
+      result.sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
+    } else if (sortBy === "price_desc") {
+      result.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+    } else if (sortBy === "name_asc") {
+      result.sort((a, b) => (a.name || "").localeCompare(b.name || "", "pt-BR"));
+    }
+
+    return result;
+  }, [products, activeCategory, statusFilter, searchTerm, sortBy]);
+
+  const displayedProducts = filteredAndSortedProducts.slice(0, displayLimit);
+  const hasMoreProducts = filteredAndSortedProducts.length > displayLimit;
+
+  const isFilterActive =
+    searchTerm.trim() !== "" ||
+    activeCategory !== "todos" ||
+    statusFilter !== "all" ||
+    sortBy !== "recent";
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setActiveCategory("todos");
+    setStatusFilter("all");
+    setSortBy("recent");
+  };
 
   const openProductModal = (product: Product) => {
     setSelectedProduct(product);
     setIsModalOpen(true);
   };
 
-  // 🚨 NOVO: Handler para aumentar o limite de exibição
   const handleViewMore = () => {
-    // Aumenta o limite em mais 6 (INITIAL_DISPLAY_LIMIT) peças
     setDisplayLimit((prevLimit) => prevLimit + INITIAL_DISPLAY_LIMIT);
   };
 
-  // Os handlers de WhatsApp agora usam a constante `storeSettings`
   const whatsappRent = (productName: string) => {
-    // Extrai apenas dígitos para o número
-    const whatsappNumber =
-      storeSettings?.whatsapp_url?.replace(/\D/g, "") || "5511999999999";
-    const message = `Olá! Gostaria de alugar o ${productName} do LooksdeHoje. Poderia me dar mais informações?`;
-    window.open(
-      `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`,
-      "_blank"
-    );
+    const message = `Olá! Gostaria de alugar o look "${productName}" no ${settings.store_name || "Looks de Hoje"}. Poderia me dar mais informações?`;
+    window.open(getWhatsAppUrl(message), "_blank");
   };
 
   const whatsappNotify = (productName: string) => {
-    const whatsappNumber =
-      storeSettings?.whatsapp_url?.replace(/\D/g, "") || "5511999999999";
-    const message = `Olá, gostaria de ser avisado(a) quando a peça ${productName} estiver disponível novamente.`;
-    window.open(
-      `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`,
-      "_blank"
-    );
+    const message = `Olá! Gostaria de ser avisada quando a peça "${productName}" estiver disponível novamente para aluguel.`;
+    window.open(getWhatsAppUrl(message), "_blank");
   };
 
   if (loading) {
-    // ... (Loading state)
     return (
       <section id="colecao" className="py-20 bg-secondary/30">
         <div className="container mx-auto px-4">
@@ -192,51 +204,155 @@ const CollectionSection = () => {
   }
 
   return (
-    // ... (Restante da renderização)
     <>
       <section id="colecao" className="py-20 bg-secondary/30">
         <div className="container mx-auto px-4">
           {/* Section Header */}
-          <div className="text-center mb-16">
-            <h2 className="font-playfair text-4xl md:text-5xl font-bold text-foreground mb-6">
+          <div className="text-center mb-12">
+            <h2 className="font-playfair text-4xl md:text-5xl font-bold text-foreground mb-4">
               Nossa Coleção
             </h2>
             <p className="font-montserrat text-lg text-muted-foreground max-w-2xl mx-auto">
               Descubra looks únicos para cada ocasião. Elegância e sofisticação
-              para momentos especiais.
+              para momentos inesquecíveis.
             </p>
           </div>
 
-          {/* Category Filters */}
-          <div className="flex flex-wrap justify-center gap-3 mb-12">
-            {allCategories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => setActiveCategory(category.id)}
-                className={`inline-flex items-center px-4 py-2 rounded-full font-montserrat font-medium transition-all duration-300 hover:-translate-y-0.5 ${
-                  activeCategory === category.id
-                    ? "bg-gradient-gold text-primary-foreground shadow-gold"
-                    : "bg-background text-foreground hover:bg-muted border border-border"
-                }`}
-              >
-                <Filter className="w-4 h-4 mr-2" />
-                {category.name}
-                <span
-                  className={`ml-2 text-xs px-2 py-1 rounded-full ${
-                    activeCategory === category.id
-                      ? "bg-primary-foreground/20 text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
+          {/* Search and Advanced Filters Container */}
+          <div className="max-w-4xl mx-auto mb-10 space-y-4">
+            {/* Top Filter Bar: Search + Status Toggle + Sort */}
+            <div className="bg-card/90 backdrop-blur-md p-3.5 sm:p-4 rounded-2xl border border-border/70 shadow-sm flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+              {/* Search Bar Input */}
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar vestidos, conjuntos, modelos, tamanhos..."
+                  className="pl-9 pr-9 h-11 bg-background/80 border-border/80 rounded-xl font-montserrat text-sm focus-visible:ring-primary/40"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-full hover:bg-muted"
+                    title="Limpar busca"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Status Segmented Control */}
+              <div className="flex items-center gap-1 bg-muted/70 p-1 rounded-xl shrink-0 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("all")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-montserrat font-medium transition-all ${
+                    statusFilter === "all"
+                      ? "bg-card text-foreground shadow-sm font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {category.count}
+                  Todas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("available")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-montserrat font-medium transition-all flex items-center gap-1.5 ${
+                    statusFilter === "available"
+                      ? "bg-emerald-600 text-white shadow-sm font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  Disponíveis
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("rented")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-montserrat font-medium transition-all ${
+                    statusFilter === "rented"
+                      ? "bg-card text-foreground shadow-sm font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Alugadas
+                </button>
+              </div>
+
+              {/* Sort By Dropdown */}
+              <div className="flex items-center gap-2 shrink-0">
+                <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground hidden sm:inline-block" />
+                <select
+                  value={sortBy}
+                  onChange={(e: any) => setSortBy(e.target.value)}
+                  className="h-11 px-3 bg-background/80 border border-border/80 rounded-xl text-xs sm:text-sm font-montserrat text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
+                  aria-label="Ordenar produtos"
+                >
+                  <option value="recent">Mais Recentes</option>
+                  <option value="price_asc">Menor Preço</option>
+                  <option value="price_desc">Maior Preço</option>
+                  <option value="name_asc">Nome (A - Z)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Category Filter Pills */}
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+              {allCategories.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => setActiveCategory(category.id)}
+                  className={`inline-flex items-center px-4 py-2 rounded-full font-montserrat text-xs sm:text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 ${
+                    activeCategory === category.id
+                      ? "bg-gradient-gold text-primary-foreground shadow-gold font-semibold"
+                      : "bg-card text-foreground hover:bg-muted border border-border/80"
+                  }`}
+                >
+                  {category.name}
+                  <span
+                    className={`ml-2 text-[11px] px-2 py-0.5 rounded-full ${
+                      activeCategory === category.id
+                        ? "bg-primary-foreground/20 text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {category.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Active Filter summary and Clear button */}
+            {isFilterActive && (
+              <div className="flex flex-wrap items-center justify-between text-xs font-montserrat text-muted-foreground px-1 pt-1">
+                <span>
+                  Exibindo{" "}
+                  <strong className="text-foreground font-semibold">
+                    {displayedProducts.length}
+                  </strong>{" "}
+                  de{" "}
+                  <strong className="text-foreground font-semibold">
+                    {filteredAndSortedProducts.length}
+                  </strong>{" "}
+                  peças encontradas
                 </span>
-              </button>
-            ))}
+                <button
+                  type="button"
+                  onClick={handleClearFilters}
+                  className="inline-flex items-center gap-1.5 text-primary hover:underline font-semibold cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Limpar todos os filtros
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Products Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto animate-fade-in">
-            {/* 🚨 ALTERADO: Mapeia `displayedProducts` em vez de `filteredProducts` */}
             {displayedProducts.length > 0 ? (
               displayedProducts.map((product) => {
                 const isAvailable = product.status === "available";
@@ -254,7 +370,6 @@ const CollectionSection = () => {
                     {/* Product Image Container */}
                     <div className="relative aspect-[3/4] w-full overflow-hidden bg-secondary/30">
                       {(() => {
-                        // Priority: images array first, then fallback to image_url
                         const firstImage =
                           product.images &&
                           (product.images as Array<any>).length > 0
@@ -401,16 +516,31 @@ const CollectionSection = () => {
                 );
               })
             ) : (
-              <div className="col-span-full text-center py-12">
-                <p className="font-montserrat text-lg text-muted-foreground">
-                  Nenhuma peça encontrada nesta categoria.
+              <div className="col-span-full text-center py-16 px-4 bg-card/50 rounded-2xl border border-border/60">
+                <Search className="w-10 h-10 text-muted-foreground/60 mx-auto mb-3" />
+                <h4 className="font-playfair text-xl font-bold text-foreground mb-2">
+                  Nenhuma peça encontrada
+                </h4>
+                <p className="font-montserrat text-sm text-muted-foreground max-w-md mx-auto mb-6">
+                  {searchTerm
+                    ? `Não encontramos resultados para "${searchTerm}". Tente outros termos ou remova filtros.`
+                    : "Não encontramos peças com a combinação de filtros selecionada."}
                 </p>
+                {isFilterActive && (
+                  <Button
+                    variant="outline"
+                    onClick={handleClearFilters}
+                    className="font-montserrat text-xs gap-2 rounded-full border-primary/40 text-primary hover:bg-primary/10"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Limpar filtros e ver todas as peças
+                  </Button>
+                )}
               </div>
             )}
           </div>
 
           {/* View More Button */}
-          {/* 🚨 ALTERADO: Usa a nova condição `hasMoreProducts` e o handler `handleViewMore` */}
           {hasMoreProducts && (
             <div className="text-center mt-12">
               <Button
@@ -419,7 +549,7 @@ const CollectionSection = () => {
                 onClick={handleViewMore}
                 className="font-montserrat font-semibold px-8 py-3 rounded-full border-2 border-primary text-primary hover:bg-gradient-gold hover:text-primary-foreground hover:border-transparent transition-all duration-300"
               >
-                Ver Mais Peças
+                Ver Mais Peças ({filteredAndSortedProducts.length - displayedProducts.length} restantes)
               </Button>
             </div>
           )}
@@ -434,9 +564,8 @@ const CollectionSection = () => {
           setIsModalOpen(false);
           setSelectedProduct(null);
         }}
-        // O ProductModal receberá a URL do WhatsApp das settings carregadas.
         whatsappUrl={
-          storeSettings?.whatsapp_url?.replace(/\D/g, "") || "5511999999999"
+          settings.whatsapp_url?.replace(/\D/g, "") || "5571992771527"
         }
       />
     </>

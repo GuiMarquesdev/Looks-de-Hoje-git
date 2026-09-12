@@ -1,7 +1,10 @@
 import { Instagram, Heart } from "lucide-react";
 import whatsappIcon from "@/assets/whatsapp-icon.svg";
+import { useStoreSettings } from "@/contexts/StoreSettingsContext";
 
 const Footer = () => {
+  const { settings, getWhatsAppUrl, getInstagramUrl, getDisplayPhone } = useStoreSettings();
+
   const quickLinks = [
     { name: "Início", href: "#inicio" },
     { name: "Coleção", href: "#colecao" },
@@ -13,13 +16,13 @@ const Footer = () => {
     {
       name: "WhatsApp",
       icon: <img src={whatsappIcon} alt="WhatsApp" className="w-5 h-5" />,
-      href: "https://wa.me/71992771527",
+      href: getWhatsAppUrl(),
       color: "hover:text-green-500",
     },
     {
       name: "Instagram",
       icon: <Instagram className="w-5 h-5" />,
-      href: "https://www.instagram.com/looksdehojebrecho/",
+      href: getInstagramUrl(),
       color: "hover:text-pink-500",
     },
   ];
@@ -36,7 +39,7 @@ const Footer = () => {
           {/* Brand Section */}
           <div className="text-center md:text-left">
             <h3 className="font-playfair text-3xl font-bold mb-4 text-primary">
-              LooksdeHoje
+              {settings.store_name || "LooksdeHoje"}
             </h3>
             <p className="font-montserrat text-background/80 leading-relaxed mb-6">
               Elegância e sofisticação para suas ocasiões especiais. Alugue
@@ -90,12 +93,12 @@ const Footer = () => {
                   WhatsApp:
                 </h5>
                 <a
-                  href="https://wa.me/71992771527"
+                  href={getWhatsAppUrl()}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-montserrat text-background/80 hover:text-primary transition-colors"
                 >
-                  (71) 99277-1527
+                  {getDisplayPhone()}
                 </a>
               </div>
 
@@ -104,10 +107,10 @@ const Footer = () => {
                   E-mail:
                 </h5>
                 <a
-                  href="mailto:lookdehojebrecho@gmail.com"
+                  href={`mailto:${settings.email || "contato@looksdehoje.com.br"}`}
                   className="font-montserrat text-background/80 hover:text-primary transition-colors"
                 >
-                  lookdehojebrecho@gmail.com
+                  {settings.email || "contato@looksdehoje.com.br"}
                 </a>
               </div>
 
@@ -116,9 +119,7 @@ const Footer = () => {
                   Endereço:
                 </h5>
                 <address className="font-montserrat text-background/80 not-italic">
-                  Av. Antônio Carlos Magalhães, 2501 - Brotas
-                  <br />
-                  Salvador - BA, 40280-901
+                  {settings.address || "Av. Antônio Carlos Magalhães, 2501 - Brotas, Salvador - BA, 40280-901"}
                 </address>
               </div>
             </div>

@@ -26,6 +26,16 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Form,
   FormControl,
   FormField,
@@ -116,6 +126,8 @@ const HeroManagement = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [slideIdToDelete, setSlideIdToDelete] = useState<string | null>(null);
+  const [isDeletingSlide, setIsDeletingSlide] = useState(false);
 
   const form = useForm<z.infer<typeof slideSchema>>({
     resolver: zodResolver(slideSchema),
@@ -336,23 +348,26 @@ const HeroManagement = () => {
     }
   };
 
-  const removeSlide = async (id: string) => {
-    if (!heroData) return;
+  const handleConfirmDeleteSlide = async () => {
+    if (!slideIdToDelete || !heroData) return;
 
+    setIsDeletingSlide(true);
     try {
-      await api.delete(`/hero/slides/${id}`);
-
+      await api.delete(`/hero/slides/${slideIdToDelete}`);
       await fetchHeroData();
 
-      if (selectedSlide?.id === id) {
+      if (selectedSlide?.id === slideIdToDelete) {
         setSelectedSlide(null);
         setEditDialogOpen(false);
       }
       toast.success("Slide removido com sucesso!");
+      setSlideIdToDelete(null);
     } catch (error) {
       toast.error("Erro ao remover slide.");
       console.error(error);
       await fetchHeroData();
+    } finally {
+      setIsDeletingSlide(false);
     }
   };
 
@@ -506,7 +521,7 @@ const HeroManagement = () => {
                                 title="Remover Slide"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (slide.id) removeSlide(slide.id);
+                                  if (slide.id) setSlideIdToDelete(slide.id);
                                 }}
                                 className="text-red-500 hover:bg-red-500/10"
                               >
@@ -748,6 +763,39 @@ const HeroManagement = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Confirmação de Exclusão de Slide */}
+      <AlertDialog
+        open={Boolean(slideIdToDelete)}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingSlide) {
+            setSlideIdToDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent className="font-montserrat">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-playfair text-xl text-foreground">
+              Excluir Slide do Banner
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground text-sm">
+              Tem certeza que deseja remover este slide do banner inicial? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingSlide}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteSlide}
+              disabled={isDeletingSlide}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingSlide ? "Excluindo..." : "Sim, Excluir Slide"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

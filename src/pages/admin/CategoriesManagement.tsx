@@ -20,6 +20,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Form,
   FormControl,
   FormField,
@@ -63,6 +73,8 @@ const CategoriesManagement = () => {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [isDeletingCategory, setIsDeletingCategory] = useState(false);
 
   const form = useForm<z.infer<typeof categorySchema>>({
     resolver: zodResolver(categorySchema),
@@ -124,10 +136,14 @@ const CategoriesManagement = () => {
     }
   };
 
-  const deleteCategory = async (category: Category) => {
+  const handleConfirmDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+
+    setIsDeletingCategory(true);
     try {
-      await api.delete(`/categories/${category.id}`);
-      toast.success(`Categoria "${category.name}" removida`);
+      await api.delete(`/categories/${categoryToDelete.id}`);
+      toast.success(`Categoria "${categoryToDelete.name}" removida com sucesso!`);
+      setCategoryToDelete(null);
       fetchCategories();
     } catch (error: any) {
       console.error("Error deleting category:", error);
@@ -138,6 +154,8 @@ const CategoriesManagement = () => {
       } else {
         toast.error("Erro ao excluir categoria");
       }
+    } finally {
+      setIsDeletingCategory(false);
     }
   };
 
@@ -336,8 +354,8 @@ const CategoriesManagement = () => {
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          onClick={() => deleteCategory(category)}
-                          className="text-destructive font-montserrat"
+                          onClick={() => setCategoryToDelete(category)}
+                          className="text-destructive font-montserrat focus:text-destructive cursor-pointer"
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
                           Excluir
@@ -361,6 +379,43 @@ const CategoriesManagement = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Confirmação de Exclusão de Categoria */}
+      <AlertDialog
+        open={Boolean(categoryToDelete)}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingCategory) {
+            setCategoryToDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent className="font-montserrat">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-playfair text-xl text-foreground">
+              Confirmar Exclusão de Categoria
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground text-sm">
+              Tem certeza que deseja excluir a categoria{" "}
+              <strong className="text-foreground font-semibold">
+                "{categoryToDelete?.name}"
+              </strong>
+              ? Peças associadas a esta categoria podem precisar ser reclassificadas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingCategory}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteCategory}
+              disabled={isDeletingCategory}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingCategory ? "Excluindo..." : "Sim, Excluir Categoria"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

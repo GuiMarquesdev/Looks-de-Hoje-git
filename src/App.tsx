@@ -6,6 +6,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import CategoriesManagement from "./pages/admin/CategoriesManagement";
 import PiecesManagement from "./pages/admin/PiecesManagement";
 import HeroManagement from "./pages/admin/HeroManagement";
+import RulesManagement from "./pages/admin/RulesManagement";
 import Settings from "./pages/admin/Settings";
 import AdminNotFound from "./pages/Admin.NotFound";
 import AdminLogin from "./pages/AdminLogin"; // <-- Importe a página de login
@@ -39,6 +40,7 @@ function App() {
             <Route path="categories" element={<CategoriesManagement />} />{" "}
             {/* CORRIGIDO: de "categorias" para "categories" */}
             <Route path="hero" element={<HeroManagement />} />
+            <Route path="rules" element={<RulesManagement />} />
             <Route path="settings" element={<Settings />} />{" "}
             {/* CORREÇÃO FINAL: de "config" para "settings" */}
             <Route path="*" element={<AdminNotFound />} />{" "}

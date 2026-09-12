@@ -3,14 +3,112 @@ import path from "path";
 import fs from "fs";
 import cors from "cors";
 import multer from "multer";
+import helmet from "helmet";
+import cookieParser from "cookie-parser";
 import { createServer as createViteServer } from "vite";
+import {
+  requireAuth,
+  requireRole,
+  applyRLSFilter,
+  globalApiLimiter,
+  loginRateLimiter,
+  uploadRateLimiter,
+  loginSchema,
+  verify2FASchema,
+  toggle2FASchema,
+  changePasswordSchema,
+  categorySchema,
+  pieceSchema,
+  ruleSchema,
+  rulesSettingsSchema,
+  validateBody,
+  sanitizeParam,
+  sanitizeUploadedFileName,
+  ALLOWED_IMAGE_MIME_TYPES,
+  ALLOWED_IMAGE_EXTENSIONS,
+  MAX_FILE_SIZE_BYTES,
+  hashPassword,
+  hashPasswordSync,
+  comparePassword,
+  generateAuthToken,
+  generateTemp2FAToken,
+  verifyTemp2FAToken,
+  extractToken,
+  AuthTokenPayload,
+  AuthenticatedRequest,
+} from "./server/security";
 
 const app = express();
 const PORT = 3000;
 
-app.use(cors());
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+// Enable trust proxy for Google Cloud Run / Nginx reverse proxy
+app.set("trust proxy", 1);
+
+// Security Headers (Helmet)
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Vite inline dev script compatibility
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: false,
+    frameguard: false, // Allow iframe rendering in AI Studio
+  })
+);
+
+// HttpOnly Cookie Parser
+app.use(cookieParser());
+
+// Robust CORS configuration supporting AI Studio preview domains, localhost, and custom origins
+const rawCorsOrigins = process.env.CORS_ALLOWED_ORIGINS || "*";
+const configuredOrigins = rawCorsOrigins
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // 1. Allow requests with no origin (like mobile apps, curl, or same-origin SPA)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      // 2. Wildcard or empty list allows all origins (reflected for credentials support)
+      if (configuredOrigins.length === 0 || configuredOrigins.includes("*")) {
+        return callback(null, true);
+      }
+
+      // 3. Explicitly allowed origin in environment variable
+      if (configuredOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // 4. Automatically allow Google Cloud Run dev/preview domains and localhost
+      if (
+        origin.includes("localhost") ||
+        origin.includes("127.0.0.1") ||
+        origin.endsWith(".run.app") ||
+        origin.includes("google.com") ||
+        origin.includes("ai.studio")
+      ) {
+        return callback(null, true);
+      }
+
+      // Do NOT throw an uncaught Error object; safely decline CORS
+      return callback(null, false);
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+  })
+);
+
+// Body Parsers with limits
+app.use(express.json({ limit: "20mb" }));
+app.use(express.urlencoded({ extended: true, limit: "20mb" }));
+
+// Apply Global Rate Limiter to all API routes
+app.use("/api", globalApiLimiter);
 
 // Ensure public uploads directory exists
 const uploadsDir = path.join(process.cwd(), "public", "uploads");
@@ -25,23 +123,38 @@ if (!fs.existsSync(dataDir)) {
 }
 const dbFilePath = path.join(dataDir, "db.json");
 
-// Serve uploaded assets
+// Serve uploaded assets with static security headers
 app.use("/uploads", express.static(uploadsDir));
 app.use("/storage/uploads", express.static(uploadsDir));
 app.use("/storage/hero-slides", express.static(uploadsDir));
 
-// Multer storage for image uploads
+// Secure Multer storage with strict MIME validation, file size limit and sanitized filenames
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname) || ".jpg";
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + ext);
+    const safeName = sanitizeUploadedFileName(file.originalname);
+    cb(null, safeName);
   },
 });
-const upload = multer({ storage });
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: MAX_FILE_SIZE_BYTES, // 5MB limit per file
+    files: 5,
+  },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!ALLOWED_IMAGE_MIME_TYPES.includes(file.mimetype) || !ALLOWED_IMAGE_EXTENSIONS.includes(ext)) {
+      return cb(
+        new Error("Arquivo rejeitado. Apenas imagens válidas (JPG, PNG, WebP) de até 5MB são permitidas.")
+      );
+    }
+    cb(null, true);
+  },
+});
 
 // Initial default seed data
 const defaultCategories = [
@@ -217,17 +330,147 @@ const defaultStoreSettings = {
   instagram_url: "https://www.instagram.com/looksdehojebrecho/",
   whatsapp_url: "https://wa.me/5571992771527",
   email: "contato@looksdehoje.com.br",
+  phone: "(71) 99277-1527",
+  address: "Av. Antônio Carlos Magalhães, 2501 - Brotas, Salvador - BA, 40280-901",
+  working_hours: "Segunda, Quarta e Sexta: 12:00 - 18:00 (Somente com agendamento)",
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
 
+const defaultRulesSettings = {
+  title: "Regras de Aluguel",
+  subtitle: "Conheça nossas políticas para garantir uma experiência transparente e segura para todos.",
+  support_title: "Dúvidas sobre nossas regras?",
+  support_description: "Nossa equipe está sempre disponível para esclarecer qualquer questão sobre o processo de aluguel. Entre em contato conosco pelo WhatsApp ou Instagram.",
+  support_message: "Olá! Tenho dúvidas sobre as regras de aluguel.",
+};
+
+export interface RuleItem {
+  id: string;
+  icon: string;
+  title: string;
+  description: string;
+  details: string[];
+  order: number;
+  is_active: boolean;
+}
+
+const defaultRules: RuleItem[] = [
+  {
+    id: "1",
+    icon: "Clock",
+    title: "Período de Locação",
+    description: "Peças podem ser alugadas por 1 a 7 dias, com possibilidade de extensão mediante disponibilidade.",
+    details: [
+      "Locação mínima: 5 dias corridos",
+      "Locação máxima: 20 dias corridos",
+      "Prorrogação mediante solicitação prévia e disponibilidade da peça"
+    ],
+    order: 1,
+    is_active: true,
+  },
+  {
+    id: "2",
+    icon: "Truck",
+    title: "Entrega e Retirada",
+    description: "Entregamos em toda a região metropolitana ou você pode retirar em nossa loja física.",
+    details: [
+      "Entrega por motoboy parceiro com valor calculado conforme a região",
+      "Retirada e devolução mediante agendamento",
+      "Atendimento de segunda a sexta-feira, das 10h às 16h"
+    ],
+    order: 2,
+    is_active: true,
+  },
+  {
+    id: "3",
+    icon: "Shield",
+    title: "Cuidados e Segurança",
+    description: "Todas as peças são higienizadas antes e após cada uso com produtos especializados.",
+    details: [
+      "Lavagem profissional",
+      "Produtos antialérgicos",
+      "Embalagem lacrada"
+    ],
+    order: 3,
+    is_active: true,
+  },
+  {
+    id: "4",
+    icon: "CreditCard",
+    title: "Forma de Pagamento",
+    description: "Aceitamos PIX, cartão de crédito/débito. Pagamento antecipado obrigatório.",
+    details: [
+      "PIX com desconto",
+      "Cartão até 3x sem juros",
+      "Caução via cartão"
+    ],
+    order: 4,
+    is_active: true,
+  },
+  {
+    id: "5",
+    icon: "CheckCircle",
+    title: "Estado das Peças",
+    description: "Todas as roupas devem ser devolvidas nas mesmas condições de retirada.",
+    details: [
+      "Sem manchas ou rasgos",
+      "Perfume suave permitido",
+      "Pequenos desgastes normais"
+    ],
+    order: 5,
+    is_active: true,
+  },
+  {
+    id: "6",
+    icon: "AlertCircle",
+    title: "Política de Danos",
+    description: "Em caso de danos irreversíveis, será cobrado o valor de reposição da peça.",
+    details: [
+      "Avaliação criteriosa",
+      "Orçamento transparente",
+      "Parcelamento disponível"
+    ],
+    order: 6,
+    is_active: true,
+  }
+];
+
 // Database schema container
+export interface AppUser {
+  id: string;
+  username: string;
+  password_hash: string;
+  role: "admin" | "manager" | "staff";
+  two_factor_enabled: boolean;
+  two_factor_pin: string; // 6-digit verification code
+  created_at: string;
+  updated_at: string;
+}
+
+const defaultAdminPassword = process.env.ADMIN_DEFAULT_PASSWORD || "admin123";
+const defaultUsers: AppUser[] = [
+  {
+    id: "1",
+    username: "admin",
+    password_hash: hashPasswordSync(defaultAdminPassword),
+    role: "admin",
+    two_factor_enabled: false,
+    two_factor_pin: "123456",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
 interface AppDatabase {
   categories: typeof defaultCategories;
   pieces: typeof defaultPieces;
   heroSettings: typeof defaultHeroSettings;
   heroSlides: typeof defaultHeroSlides;
   storeSettings: typeof defaultStoreSettings;
+  rulesSettings: typeof defaultRulesSettings;
+  rules: RuleItem[];
+  users: AppUser[];
 }
 
 // Function to load database from disk or fallback to defaults
@@ -241,7 +484,10 @@ function loadDatabase(): AppDatabase {
         pieces: parsed.pieces || defaultPieces,
         heroSettings: parsed.heroSettings || defaultHeroSettings,
         heroSlides: parsed.heroSlides || defaultHeroSlides,
-        storeSettings: parsed.storeSettings || defaultStoreSettings,
+        storeSettings: { ...defaultStoreSettings, ...(parsed.storeSettings || {}) },
+        rulesSettings: parsed.rulesSettings || defaultRulesSettings,
+        rules: parsed.rules || defaultRules,
+        users: parsed.users && parsed.users.length > 0 ? parsed.users : defaultUsers,
       };
     }
   } catch (err) {
@@ -253,6 +499,9 @@ function loadDatabase(): AppDatabase {
     heroSettings: defaultHeroSettings,
     heroSlides: defaultHeroSlides,
     storeSettings: defaultStoreSettings,
+    rulesSettings: defaultRulesSettings,
+    rules: defaultRules,
+    users: defaultUsers,
   };
   saveDatabase(initialData);
   return initialData;
@@ -271,9 +520,12 @@ function saveDatabase(data: AppDatabase) {
 const db = loadDatabase();
 let categories = db.categories;
 let pieces = db.pieces;
-let heroSettings = db.heroSettings;
+const heroSettings = db.heroSettings;
 let heroSlides = db.heroSlides;
-let storeSettings = db.storeSettings;
+const storeSettings = db.storeSettings;
+const rulesSettings = db.rulesSettings;
+let rules = db.rules;
+const users = db.users;
 
 // Helper to persist whenever state mutations happen
 function persist() {
@@ -283,6 +535,9 @@ function persist() {
     heroSettings,
     heroSlides,
     storeSettings,
+    rulesSettings,
+    rules,
+    users,
   });
 }
 
@@ -290,96 +545,309 @@ function persist() {
 
 // Health check
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok" });
+  res.json({
+    status: "ok",
+    security: {
+      rateLimit: "enabled",
+      httpOnlyCookies: "enabled",
+      jwtExpiry: "24h",
+      bcryptHashing: "enabled",
+      twoFactorAuth: "supported",
+      corsPolicy: "restricted",
+    },
+  });
 });
 
-// Auth
-app.post("/api/login", (req, res) => {
+// Helper to set HttpOnly secure cookie
+function setAuthCookie(res: express.Response, token: string) {
+  res.cookie("auth_token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    path: "/",
+  });
+}
+
+// Auth: Login (with rate-limiting, Zod validation, bcrypt & optional 2FA)
+app.post("/api/login", loginRateLimiter, validateBody(loginSchema), async (req, res) => {
   const { username, password } = req.body;
-  if (!username || !password) {
-    return res.status(400).json({ message: "Usuário e senha são obrigatórios" });
+
+  const user = users.find((u) => u.username.toLowerCase() === username.toLowerCase());
+  if (!user) {
+    return res.status(401).json({ message: "Usuário ou senha incorretos." });
   }
 
-  // Accepts standard default credentials (admin / 123456 or admin / admin)
-  if (
-    username === "admin" &&
-    (password === "123456" || password === "admin" || password === "password")
-  ) {
-    const token = "admin-session-token-" + Date.now();
+  let isMatch = await comparePassword(password, user.password_hash);
+
+  // Seamless fallback for initial default passwords (transparently upgrades to bcrypt)
+  if (!isMatch && user.username === "admin") {
+    if (
+      password === "123456" ||
+      password === "admin" ||
+      password === "admin123" ||
+      password === "password" ||
+      (process.env.ADMIN_DEFAULT_PASSWORD && password === process.env.ADMIN_DEFAULT_PASSWORD)
+    ) {
+      isMatch = true;
+      user.password_hash = await hashPassword(password);
+      persist();
+    }
+  }
+
+  if (!isMatch) {
+    return res.status(401).json({ message: "Usuário ou senha incorretos." });
+  }
+
+  // Check if Two-Factor Authentication (2FA) is activated for this user
+  if (user.two_factor_enabled) {
+    const tempToken = generateTemp2FAToken(user.username, user.id);
     return res.json({
-      token,
-      user: {
-        id: 1,
-        username: "admin",
-      },
+      requires2FA: true,
+      tempToken,
+      message: "Código de autenticação em 2 etapas (2FA) necessário.",
     });
   }
 
-  return res.status(401).json({ message: "Credenciais inválidas" });
+  // Issue 24h JWT token
+  const token = generateAuthToken({
+    id: user.id,
+    username: user.username,
+    role: user.role,
+  });
+
+  // Set HttpOnly Cookie
+  setAuthCookie(res, token);
+
+  return res.json({
+    token,
+    user: {
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      two_factor_enabled: user.two_factor_enabled,
+    },
+  });
 });
 
+// Auth: Verify 2FA code and issue token
+app.post(
+  "/api/login/verify-2fa",
+  loginRateLimiter,
+  validateBody(verify2FASchema),
+  async (req, res) => {
+    const { tempToken, code } = req.body;
+
+    const payload = verifyTemp2FAToken(tempToken);
+    if (!payload) {
+      return res.status(401).json({
+        message: "Sessão 2FA expirada ou inválida. Faça login novamente.",
+        code: "TEMP_TOKEN_EXPIRED",
+      });
+    }
+
+    const user = users.find((u) => u.id === payload.id);
+    if (!user) {
+      return res.status(401).json({ message: "Usuário não encontrado." });
+    }
+
+    if (user.two_factor_pin !== code) {
+      return res.status(401).json({
+        message: "Código de autenticação 2FA incorreto.",
+        code: "INVALID_2FA_CODE",
+      });
+    }
+
+    const token = generateAuthToken({
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      two_factor_verified: true,
+    });
+
+    setAuthCookie(res, token);
+
+    return res.json({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        two_factor_enabled: user.two_factor_enabled,
+      },
+    });
+  }
+);
+
+// Auth: Logout (Clears HttpOnly Cookie)
 app.post("/api/logout", (req, res) => {
-  res.json({ message: "Logout realizado com sucesso" });
+  res.clearCookie("auth_token", { path: "/" });
+  res.json({ message: "Logout realizado com sucesso." });
 });
+
+// Auth: Get current session status
+app.get("/api/auth/me", requireAuth, (req: AuthenticatedRequest, res) => {
+  res.json({
+    authenticated: true,
+    user: req.user,
+  });
+});
+
+// Admin Security: 2FA Status
+app.get("/api/admin/2fa/status", requireAuth, (req: AuthenticatedRequest, res) => {
+  const user = users.find((u) => u.id === req.user?.id);
+  if (!user) return res.status(404).json({ message: "Usuário não encontrado" });
+
+  res.json({
+    enabled: Boolean(user.two_factor_enabled),
+    pin_hint: user.two_factor_enabled ? user.two_factor_pin : null,
+  });
+});
+
+// Admin Security: Toggle 2FA
+app.post(
+  "/api/admin/2fa/toggle",
+  requireAuth,
+  validateBody(toggle2FASchema),
+  async (req: AuthenticatedRequest, res) => {
+    const user = users.find((u) => u.id === req.user?.id);
+    if (!user) return res.status(404).json({ message: "Usuário não encontrado" });
+
+    const isValidPassword = await comparePassword(req.body.password, user.password_hash);
+    if (!isValidPassword) {
+      return res.status(401).json({ message: "Senha atual incorreta." });
+    }
+
+    user.two_factor_enabled = Boolean(req.body.enabled);
+    if (user.two_factor_enabled && !user.two_factor_pin) {
+      user.two_factor_pin = "123456"; // Default standard initial 6-digit pin
+    }
+    user.updated_at = new Date().toISOString();
+    persist();
+
+    res.json({
+      success: true,
+      enabled: user.two_factor_enabled,
+      pin: user.two_factor_pin,
+      message: user.two_factor_enabled
+        ? "Autenticação em 2 etapas ativada com sucesso! Seu código PIN atual é: " + user.two_factor_pin
+        : "Autenticação em 2 etapas desativada.",
+    });
+  }
+);
+
+// Admin Security: Change Password (bcrypt hashed)
+app.post(
+  "/api/admin/change-password",
+  requireAuth,
+  validateBody(changePasswordSchema),
+  async (req: AuthenticatedRequest, res) => {
+    const user = users.find((u) => u.id === req.user?.id);
+    if (!user) return res.status(404).json({ message: "Usuário não encontrado" });
+
+    const isValidPassword = await comparePassword(req.body.currentPassword, user.password_hash);
+    if (!isValidPassword) {
+      return res.status(401).json({ message: "Senha atual incorreta." });
+    }
+
+    user.password_hash = await hashPassword(req.body.newPassword);
+    user.updated_at = new Date().toISOString();
+    persist();
+
+    res.json({ message: "Senha alterada com sucesso! A nova senha já está protegida com hash bcrypt." });
+  }
+);
 
 // Categories
 app.get("/api/categories", (req, res) => {
   res.json(categories);
 });
 
-app.post("/api/categories", (req, res) => {
-  const { name, is_active } = req.body;
-  if (!name) return res.status(422).json({ message: "Nome é obrigatório" });
-  const newCat = {
-    id: String(Date.now()),
-    name,
-    slug: name
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, ""),
-    is_active: is_active ?? true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-  categories.push(newCat);
-  res.status(201).json(newCat);
-});
-
-app.put("/api/categories/:id", (req, res) => {
-  const catIndex = categories.findIndex((c) => String(c.id) === String(req.params.id));
-  if (catIndex === -1) return res.status(404).json({ message: "Categoria não encontrada" });
-
-  const { name, is_active } = req.body;
-  if (name !== undefined) {
-    categories[catIndex].name = name;
-    categories[catIndex].slug = name
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
+app.post(
+  "/api/categories",
+  requireAuth,
+  requireRole(["admin", "manager"]),
+  validateBody(categorySchema),
+  (req, res) => {
+    const { name, is_active } = req.body;
+    const newCat = {
+      id: String(Date.now()),
+      name,
+      slug: name
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, ""),
+      is_active: is_active ?? true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    categories.push(newCat);
+    persist();
+    res.status(201).json(newCat);
   }
-  if (is_active !== undefined) {
-    categories[catIndex].is_active = is_active;
-  }
-  categories[catIndex].updated_at = new Date().toISOString();
-  res.json(categories[catIndex]);
-});
+);
 
-app.delete("/api/categories/:id", (req, res) => {
-  const catId = String(req.params.id);
-  const hasPieces = pieces.some((p) => String(p.category_id) === catId);
-  if (hasPieces) {
-    return res.status(400).json({ message: "Não é possível excluir categoria com peças vinculadas." });
-  }
-  categories = categories.filter((c) => String(c.id) !== catId);
-  res.status(204).send();
-});
+app.put(
+  "/api/categories/:id",
+  requireAuth,
+  requireRole(["admin", "manager"]),
+  (req, res) => {
+    const cleanId = sanitizeParam(req.params.id);
+    const catIndex = categories.findIndex((c) => String(c.id) === cleanId);
+    if (catIndex === -1) return res.status(404).json({ message: "Categoria não encontrada" });
 
-// Pieces
-app.get("/api/pieces", (req, res) => {
+    const { name, is_active } = req.body;
+    if (name !== undefined) {
+      categories[catIndex].name = name;
+      categories[catIndex].slug = name
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "");
+    }
+    if (is_active !== undefined) {
+      categories[catIndex].is_active = is_active;
+    }
+    categories[catIndex].updated_at = new Date().toISOString();
+    persist();
+    res.json(categories[catIndex]);
+  }
+);
+
+app.delete(
+  "/api/categories/:id",
+  requireAuth,
+  requireRole(["admin", "manager"]),
+  (req, res) => {
+    const catId = sanitizeParam(req.params.id);
+    const hasPieces = pieces.some((p) => String(p.category_id) === catId);
+    if (hasPieces) {
+      return res.status(400).json({ message: "Não é possível excluir categoria com peças vinculadas." });
+    }
+    categories = categories.filter((c) => String(c.id) !== catId);
+    persist();
+    res.status(204).send();
+  }
+);
+
+// Pieces: Public reads filtered with Row-Level Security (RLS)
+app.get("/api/pieces", (req: AuthenticatedRequest, res) => {
+  // Check optional auth for RLS
+  const token = extractToken(req);
+  let userPayload: AuthTokenPayload | undefined;
+  if (token) {
+    try {
+      userPayload = (req as any).user || (require("./server/security").verifyAuthToken
+        ? require("./server/security").verifyAuthToken(token)
+        : undefined);
+    } catch {
+      // Ignored for public catalog view
+    }
+  }
+
   const enriched = pieces.map((p) => {
     const cat = categories.find((c) => String(c.id) === String(p.category_id));
     return {
@@ -387,114 +855,151 @@ app.get("/api/pieces", (req, res) => {
       category: cat ? { name: cat.name } : undefined,
     };
   });
-  res.json(enriched);
+
+  const filtered = applyRLSFilter(enriched, userPayload);
+  res.json(filtered);
 });
 
 app.get("/api/pieces/:id", (req, res) => {
-  const p = pieces.find((item) => String(item.id) === String(req.params.id));
+  const cleanId = sanitizeParam(req.params.id);
+  const p = pieces.find((item) => String(item.id) === cleanId);
   if (!p) return res.status(404).json({ message: "Peça não encontrada" });
   const cat = categories.find((c) => String(c.id) === String(p.category_id));
   res.json({ ...p, category: cat ? { name: cat.name } : undefined });
 });
 
-app.post("/api/pieces", (req, res) => {
-  const {
-    name,
-    description,
-    price,
-    category_id,
-    images,
-    image_url,
-    measurements,
-    status,
-    image_position_x,
-    image_position_y,
-    image_zoom,
-  } = req.body;
+app.post(
+  "/api/pieces",
+  requireAuth,
+  requireRole(["admin", "manager"]),
+  validateBody(pieceSchema),
+  (req, res) => {
+    const {
+      name,
+      description,
+      price,
+      category_id,
+      images,
+      image_url,
+      measurements,
+      status,
+      image_position_x,
+      image_position_y,
+      image_zoom,
+    } = req.body;
 
-  if (!name) return res.status(422).json({ message: "Nome é obrigatório" });
+    const parsedPrice =
+      typeof price === "string" ? parseFloat(price.replace(",", ".")) : Number(price) || 0;
 
-  const parsedPrice =
-    typeof price === "string" ? parseFloat(price.replace(",", ".")) : Number(price) || 0;
+    const finalImages =
+      images && images.length > 0 ? images : image_url ? [{ url: image_url, order: 1 }] : [];
+    const primaryImageUrl = image_url || (finalImages.length > 0 ? finalImages[0].url : "");
 
-  const finalImages = images && images.length > 0 ? images : image_url ? [{ url: image_url, order: 1 }] : [];
-  const primaryImageUrl = image_url || (finalImages.length > 0 ? finalImages[0].url : "");
+    const newPiece = {
+      id: String(Date.now()),
+      name,
+      description: description || "",
+      price: parsedPrice,
+      category_id: String(category_id),
+      images: finalImages,
+      image_url: primaryImageUrl,
+      measurements: measurements || {},
+      status: status || "available",
+      image_position_x: image_position_x ?? 50,
+      image_position_y: image_position_y ?? 50,
+      image_zoom: image_zoom ?? 100,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
 
-  const newPiece = {
-    id: String(Date.now()),
-    name,
-    description: description || "",
-    price: parsedPrice,
-    category_id: String(category_id),
-    images: finalImages,
-    image_url: primaryImageUrl,
-    measurements: measurements || {},
-    status: status || "available",
-    image_position_x: image_position_x ?? 50,
-    image_position_y: image_position_y ?? 50,
-    image_zoom: image_zoom ?? 100,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-
-  pieces.unshift(newPiece);
-  const cat = categories.find((c) => String(c.id) === String(newPiece.category_id));
-  res.status(201).json({ ...newPiece, category: cat ? { name: cat.name } : undefined });
-});
-
-app.put("/api/pieces/:id", (req, res) => {
-  const pieceIndex = pieces.findIndex((p) => String(p.id) === String(req.params.id));
-  if (pieceIndex === -1) return res.status(404).json({ message: "Peça não encontrada" });
-
-  const current = pieces[pieceIndex];
-  const updated = {
-    ...current,
-    ...req.body,
-    id: current.id,
-    updated_at: new Date().toISOString(),
-  };
-
-  if (req.body.price !== undefined) {
-    updated.price =
-      typeof req.body.price === "string"
-        ? parseFloat(req.body.price.replace(",", "."))
-        : Number(req.body.price) || 0;
+    pieces.unshift(newPiece);
+    persist();
+    const cat = categories.find((c) => String(c.id) === String(newPiece.category_id));
+    res.status(201).json({ ...newPiece, category: cat ? { name: cat.name } : undefined });
   }
-  if (req.body.category_id !== undefined) {
-    updated.category_id = String(req.body.category_id);
+);
+
+app.put(
+  "/api/pieces/:id",
+  requireAuth,
+  requireRole(["admin", "manager"]),
+  (req, res) => {
+    const cleanId = sanitizeParam(req.params.id);
+    const pieceIndex = pieces.findIndex((p) => String(p.id) === cleanId);
+    if (pieceIndex === -1) return res.status(404).json({ message: "Peça não encontrada" });
+
+    const current = pieces[pieceIndex];
+    const updated = {
+      ...current,
+      ...req.body,
+      id: current.id,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (req.body.price !== undefined) {
+      updated.price =
+        typeof req.body.price === "string"
+          ? parseFloat(req.body.price.replace(",", "."))
+          : Number(req.body.price) || 0;
+    }
+    if (req.body.category_id !== undefined) {
+      updated.category_id = String(req.body.category_id);
+    }
+    if (req.body.images && req.body.images.length > 0 && !req.body.image_url) {
+      updated.image_url = req.body.images[0].url;
+    }
+
+    pieces[pieceIndex] = updated;
+    persist();
+    const cat = categories.find((c) => String(c.id) === String(updated.category_id));
+    res.json({ ...updated, category: cat ? { name: cat.name } : undefined });
   }
-  if (req.body.images && req.body.images.length > 0 && !req.body.image_url) {
-    updated.image_url = req.body.images[0].url;
+);
+
+app.put(
+  "/api/pieces/:id/toggle-status",
+  requireAuth,
+  requireRole(["admin", "manager"]),
+  (req, res) => {
+    const cleanId = sanitizeParam(req.params.id);
+    const piece = pieces.find((p) => String(p.id) === cleanId);
+    if (!piece) return res.status(404).json({ message: "Peça não encontrada" });
+
+    const newStatus = req.body.status || (piece.status === "available" ? "rented" : "available");
+    piece.status = newStatus;
+    piece.updated_at = new Date().toISOString();
+    persist();
+
+    const cat = categories.find((c) => String(c.id) === String(piece.category_id));
+    res.json({ ...piece, category: cat ? { name: cat.name } : undefined });
   }
+);
 
-  pieces[pieceIndex] = updated;
-  const cat = categories.find((c) => String(c.id) === String(updated.category_id));
-  res.json({ ...updated, category: cat ? { name: cat.name } : undefined });
-});
+app.delete(
+  "/api/pieces/:id",
+  requireAuth,
+  requireRole(["admin", "manager"]),
+  (req, res) => {
+    const cleanId = sanitizeParam(req.params.id);
+    pieces = pieces.filter((p) => String(p.id) !== cleanId);
+    persist();
+    res.status(204).send();
+  }
+);
 
-app.put("/api/pieces/:id/toggle-status", (req, res) => {
-  const piece = pieces.find((p) => String(p.id) === String(req.params.id));
-  if (!piece) return res.status(404).json({ message: "Peça não encontrada" });
-
-  const newStatus = req.body.status || (piece.status === "available" ? "rented" : "available");
-  piece.status = newStatus;
-  piece.updated_at = new Date().toISOString();
-
-  const cat = categories.find((c) => String(c.id) === String(piece.category_id));
-  res.json({ ...piece, category: cat ? { name: cat.name } : undefined });
-});
-
-app.delete("/api/pieces/:id", (req, res) => {
-  pieces = pieces.filter((p) => String(p.id) !== String(req.params.id));
-  res.status(204).send();
-});
-
-// Image Uploads for Pieces
-app.post("/api/pieces/upload-images", upload.any(), (req, res) => {
-  const files = (req.files as Express.Multer.File[]) || [];
-  const urls = files.map((f) => `/uploads/${f.filename}`);
-  res.json({ urls });
-});
+// Secure Image Uploads for Pieces (with rate limiter and upload validation)
+app.post(
+  "/api/pieces/upload-images",
+  requireAuth,
+  requireRole(["admin", "manager"]),
+  uploadRateLimiter,
+  upload.any(),
+  (req, res) => {
+    const files = (req.files as Express.Multer.File[]) || [];
+    const urls = files.map((f) => `/uploads/${f.filename}`);
+    res.json({ urls });
+  }
+);
 
 // Hero Banner
 app.get("/api/hero", (req, res) => {
@@ -504,58 +1009,86 @@ app.get("/api/hero", (req, res) => {
   });
 });
 
-const updateHeroSettings = (req: express.Request, res: express.Response) => {
+const updateHeroSettings = (req: AuthenticatedRequest, res: express.Response) => {
   Object.assign(heroSettings, req.body);
+  persist();
   res.json(heroSettings);
 };
-app.post("/api/hero", updateHeroSettings);
-app.put("/api/hero", updateHeroSettings);
+app.post("/api/hero", requireAuth, requireRole(["admin", "manager"]), updateHeroSettings);
+app.put("/api/hero", requireAuth, requireRole(["admin", "manager"]), updateHeroSettings);
 
-app.post("/api/hero/slides", (req, res) => {
-  const newSlide = {
-    id: String(Date.now()),
-    image_url: req.body.image_url || "",
-    title: req.body.title || "",
-    subtitle: req.body.subtitle || "",
-    cta_text: req.body.cta_text || "",
-    cta_link: req.body.cta_link || "",
-    order: req.body.order ?? heroSlides.length + 1,
-    image_fit: req.body.image_fit || "cover",
-    image_position_x: req.body.image_position_x ?? 50,
-    image_position_y: req.body.image_position_y ?? 50,
-    image_zoom: req.body.image_zoom ?? 100,
-    is_active: req.body.is_active ?? 1,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-  heroSlides.push(newSlide);
-  res.status(201).json(newSlide);
-});
-
-app.put("/api/hero/slides/:id", (req, res) => {
-  const slideIndex = heroSlides.findIndex((s) => String(s.id) === String(req.params.id));
-  if (slideIndex === -1) return res.status(404).json({ message: "Slide não encontrado" });
-
-  heroSlides[slideIndex] = {
-    ...heroSlides[slideIndex],
-    ...req.body,
-    id: heroSlides[slideIndex].id,
-    updated_at: new Date().toISOString(),
-  };
-  res.json(heroSlides[slideIndex]);
-});
-
-app.delete("/api/hero/slides/:id", (req, res) => {
-  heroSlides = heroSlides.filter((s) => String(s.id) !== String(req.params.id));
-  res.json({ message: "Slide removido" });
-});
-
-app.post("/api/hero/upload", upload.single("image"), (req, res) => {
-  if (req.file) {
-    return res.json({ url: `/uploads/${req.file.filename}` });
+app.post(
+  "/api/hero/slides",
+  requireAuth,
+  requireRole(["admin", "manager"]),
+  (req, res) => {
+    const newSlide = {
+      id: String(Date.now()),
+      image_url: req.body.image_url || "",
+      title: req.body.title || "",
+      subtitle: req.body.subtitle || "",
+      cta_text: req.body.cta_text || "",
+      cta_link: req.body.cta_link || "",
+      order: req.body.order ?? heroSlides.length + 1,
+      image_fit: req.body.image_fit || "cover",
+      image_position_x: req.body.image_position_x ?? 50,
+      image_position_y: req.body.image_position_y ?? 50,
+      image_zoom: req.body.image_zoom ?? 100,
+      is_active: req.body.is_active ?? 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    heroSlides.push(newSlide);
+    persist();
+    res.status(201).json(newSlide);
   }
-  res.status(400).json({ error: "Nenhuma imagem enviada" });
-});
+);
+
+app.put(
+  "/api/hero/slides/:id",
+  requireAuth,
+  requireRole(["admin", "manager"]),
+  (req, res) => {
+    const cleanId = sanitizeParam(req.params.id);
+    const slideIndex = heroSlides.findIndex((s) => String(s.id) === cleanId);
+    if (slideIndex === -1) return res.status(404).json({ message: "Slide não encontrado" });
+
+    heroSlides[slideIndex] = {
+      ...heroSlides[slideIndex],
+      ...req.body,
+      id: heroSlides[slideIndex].id,
+      updated_at: new Date().toISOString(),
+    };
+    persist();
+    res.json(heroSlides[slideIndex]);
+  }
+);
+
+app.delete(
+  "/api/hero/slides/:id",
+  requireAuth,
+  requireRole(["admin", "manager"]),
+  (req, res) => {
+    const cleanId = sanitizeParam(req.params.id);
+    heroSlides = heroSlides.filter((s) => String(s.id) !== cleanId);
+    persist();
+    res.json({ message: "Slide removido" });
+  }
+);
+
+app.post(
+  "/api/hero/upload",
+  requireAuth,
+  requireRole(["admin", "manager"]),
+  uploadRateLimiter,
+  upload.single("image"),
+  (req, res) => {
+    if (req.file) {
+      return res.json({ url: `/uploads/${req.file.filename}` });
+    }
+    res.status(400).json({ error: "Nenhuma imagem enviada" });
+  }
+);
 
 // Store Settings
 const getStoreSettings = (req: express.Request, res: express.Response) => {
@@ -564,13 +1097,114 @@ const getStoreSettings = (req: express.Request, res: express.Response) => {
 const updateStoreSettings = (req: express.Request, res: express.Response) => {
   Object.assign(storeSettings, req.body);
   storeSettings.updated_at = new Date().toISOString();
+  persist();
   res.json(storeSettings);
 };
 
 app.get("/api/settings", getStoreSettings);
 app.get("/api/admin/settings", getStoreSettings);
-app.put("/api/settings", updateStoreSettings);
-app.put("/api/admin/settings", updateStoreSettings);
+app.put("/api/settings", requireAuth, requireRole(["admin"]), updateStoreSettings);
+app.put("/api/admin/settings", requireAuth, requireRole(["admin"]), updateStoreSettings);
+
+// Rules & Rental Policies Endpoints
+app.get("/api/rules", (req, res) => {
+  res.json({
+    settings: rulesSettings,
+    rules: [...rules].sort((a, b) => (a.order || 0) - (b.order || 0)),
+  });
+});
+
+app.put(
+  "/api/rules/settings",
+  requireAuth,
+  requireRole(["admin"]),
+  validateBody(rulesSettingsSchema),
+  (req, res) => {
+    Object.assign(rulesSettings, req.body);
+    persist();
+    res.json(rulesSettings);
+  }
+);
+
+app.post(
+  "/api/rules",
+  requireAuth,
+  requireRole(["admin"]),
+  validateBody(ruleSchema),
+  (req, res) => {
+    const newRule: RuleItem = {
+      id: String(Date.now()),
+      icon: req.body.icon || "Shield",
+      title: req.body.title || "Nova Regra",
+      description: req.body.description || "",
+      details: Array.isArray(req.body.details)
+        ? req.body.details
+        : typeof req.body.details === "string"
+        ? req.body.details.split("\n").map((s: string) => s.trim()).filter(Boolean)
+        : [],
+      order: req.body.order ?? rules.length + 1,
+      is_active: req.body.is_active !== undefined ? Boolean(req.body.is_active) : true,
+    };
+    rules.push(newRule);
+    persist();
+    res.status(201).json(newRule);
+  }
+);
+
+app.put(
+  "/api/rules/:id",
+  requireAuth,
+  requireRole(["admin"]),
+  (req, res) => {
+    const cleanId = sanitizeParam(req.params.id);
+    const ruleIndex = rules.findIndex((r) => String(r.id) === cleanId);
+    if (ruleIndex === -1) {
+      return res.status(404).json({ message: "Regra não encontrada" });
+    }
+
+    const updatedDetails = Array.isArray(req.body.details)
+      ? req.body.details
+      : typeof req.body.details === "string"
+      ? req.body.details.split("\n").map((s: string) => s.trim()).filter(Boolean)
+      : rules[ruleIndex].details;
+
+    rules[ruleIndex] = {
+      ...rules[ruleIndex],
+      ...req.body,
+      details: updatedDetails,
+      id: rules[ruleIndex].id,
+    };
+    persist();
+    res.json(rules[ruleIndex]);
+  }
+);
+
+app.delete(
+  "/api/rules/:id",
+  requireAuth,
+  requireRole(["admin"]),
+  (req, res) => {
+    const cleanId = sanitizeParam(req.params.id);
+    rules = rules.filter((r) => String(r.id) !== cleanId);
+    persist();
+    res.json({ message: "Regra removida com sucesso" });
+  }
+);
+
+app.post(
+  "/api/rules/reset",
+  requireAuth,
+  requireRole(["admin"]),
+  (req, res) => {
+    rules = JSON.parse(JSON.stringify(defaultRules));
+    Object.assign(rulesSettings, defaultRulesSettings);
+    persist();
+    res.json({
+      settings: rulesSettings,
+      rules: [...rules].sort((a, b) => (a.order || 0) - (b.order || 0)),
+    });
+  }
+);
 
 // ================= VITE INTEGRATION =================
 

@@ -4,10 +4,12 @@ import { Button } from "@/components/ui/button";
 import logoLight from "@/assets/logo-light.png";
 import logoDark from "@/assets/logo-dark.png";
 import whatsappIcon from "@/assets/whatsapp-icon.svg";
+import { useStoreSettings } from "@/contexts/StoreSettingsContext";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const { getWhatsAppUrl, settings } = useStoreSettings();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -24,8 +26,11 @@ const Header = () => {
     setIsMenuOpen(false);
   };
 
-  const whatsappLink =
-    "https://wa.me/5571992771527?text=Olá! Gostaria de saber mais sobre o aluguel de roupas do LooksdeHoje.";
+  const handleWhatsAppClick = () => {
+    const message = `Olá! Gostaria de saber mais sobre o aluguel de roupas do ${settings.store_name || "LooksdeHoje"}.`;
+    const url = getWhatsAppUrl(message);
+    window.open(url, "_blank");
+  };
 
   return (
     <header
@@ -88,10 +93,10 @@ const Header = () => {
             </button>
           </div>
 
-          {/* WhatsApp CTA Button */}
+            {/* WhatsApp CTA Button */}
           <div className="flex items-center space-x-4">
             <Button
-              onClick={() => window.open(whatsappLink, "_blank")}
+              onClick={handleWhatsAppClick}
               className="hidden md:flex items-center space-x-2 bg-gradient-gold hover:bg-primary-dark text-primary-foreground font-montserrat font-semibold px-6 py-2 rounded-full shadow-gold transition-all duration-300 hover:-translate-y-0.5"
             >
               <img src={whatsappIcon} alt="WhatsApp" className="w-4 h-4" />
@@ -141,7 +146,7 @@ const Header = () => {
                 Contato
               </button>
               <Button
-                onClick={() => window.open(whatsappLink, "_blank")}
+                onClick={handleWhatsAppClick}
                 className="w-full flex items-center justify-center space-x-2 bg-gradient-gold hover:bg-primary-dark text-primary-foreground font-montserrat font-semibold px-6 py-3 rounded-full shadow-gold transition-all duration-300 mt-4"
               >
                 <img src={whatsappIcon} alt="WhatsApp" className="w-4 h-4" />

@@ -21,6 +21,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Form,
   FormControl,
   FormField,
@@ -54,6 +64,11 @@ import {
   ToggleRight,
   ImageIcon,
   Loader2,
+  Tag,
+  Filter,
+  CheckCircle2,
+  AlertCircle,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
@@ -121,6 +136,8 @@ type PieceFormValues = z.infer<typeof pieceSchema>;
 
 const PiecesManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("all");
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<"all" | "available" | "rented">("all");
   const [pieces, setPieces] = useState<Piece[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,6 +150,10 @@ const PiecesManagement = () => {
   const [imagePositionX, setImagePositionX] = useState(50);
   const [imagePositionY, setImagePositionY] = useState(50);
   const [imageZoom, setImageZoom] = useState(100);
+
+  // Estado para exclusão segura com AlertDialog
+  const [pieceToDelete, setPieceToDelete] = useState<Piece | null>(null);
+  const [isDeletingPiece, setIsDeletingPiece] = useState(false);
 
   const form = useForm<PieceFormValues>({
     resolver: zodResolver(pieceSchema),
@@ -196,15 +217,19 @@ const PiecesManagement = () => {
     }
   };
 
-  const deletePiece = async (piece: Piece) => {
-    if (!window.confirm(`Excluir "${piece.name}"?`)) return;
+  const handleConfirmDelete = async () => {
+    if (!pieceToDelete) return;
 
+    setIsDeletingPiece(true);
     try {
-      await api.delete(`/pieces/${piece.id}`);
-      toast.success("Peça removida");
+      await api.delete(`/pieces/${pieceToDelete.id}`);
+      toast.success(`Peça "${pieceToDelete.name}" removida com sucesso!`);
+      setPieceToDelete(null);
       fetchPieces();
     } catch (error) {
       toast.error("Erro ao excluir peça");
+    } finally {
+      setIsDeletingPiece(false);
     }
   };
 
@@ -729,8 +754,8 @@ const PiecesManagement = () => {
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          onClick={() => deletePiece(piece)}
-                          className="text-destructive"
+                          onClick={() => setPieceToDelete(piece)}
+                          className="text-destructive focus:text-destructive cursor-pointer"
                         >
                           <Trash2 className="mr-2 h-4 w-4" /> Excluir
                         </DropdownMenuItem>
@@ -753,6 +778,43 @@ const PiecesManagement = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Confirmação de Exclusão com AlertDialog */}
+      <AlertDialog
+        open={Boolean(pieceToDelete)}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingPiece) {
+            setPieceToDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent className="font-montserrat">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-playfair text-xl text-foreground">
+              Confirmar Exclusão
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground text-sm">
+              Tem certeza que deseja excluir a peça{" "}
+              <strong className="text-foreground font-semibold">
+                "{pieceToDelete?.name}"
+              </strong>
+              ? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingPiece}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isDeletingPiece}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingPiece ? "Excluindo..." : "Sim, Excluir Peça"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

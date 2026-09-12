@@ -1,33 +1,40 @@
 import { MapPin, Phone, Instagram, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ContactChannels from "@/components/ContactChannels";
+import { useStoreSettings } from "@/contexts/StoreSettingsContext";
 
 const ContactSection = () => {
+  const { settings, getWhatsAppUrl, getInstagramUrl, getDisplayPhone, getDisplayInstagram } =
+    useStoreSettings();
+
   const contactInfo = [
     {
       icon: <Phone className="w-6 h-6" />,
       title: "WhatsApp",
-      info: "(71) 99277-1527",
-      action: () => window.open("https://wa.me/71992771527", "_blank"),
+      info: getDisplayPhone(),
+      action: () => window.open(getWhatsAppUrl(), "_blank"),
       actionText: "Chamar no WhatsApp",
     },
     {
       icon: <Instagram className="w-6 h-6" />,
       title: "Instagram",
-      info: "@looksdehojebrecho",
-      action: () =>
-        window.open("https://www.instagram.com/looksdehojebrecho/", "_blank"),
+      info: getDisplayInstagram(),
+      action: () => window.open(getInstagramUrl(), "_blank"),
       actionText: "Seguir no Instagram",
     },
   ];
 
   const workingHours = [
-    { day: "Segunda, Quarta e Sexta", hours: "12:00 - 18:00" },
-    { day: "Atendimento", hours: "Somente com agendamento" },
+    {
+      day: "Horário",
+      hours: settings.working_hours || "Segunda, Quarta e Sexta: 12:00 - 18:00 (Com agendamento)",
+    },
+    { day: "Atendimento", hours: "Somente com agendamento prévio" },
   ];
 
   // Endereço completo para o link de pesquisa
   const fullAddress =
+    settings.address ||
     "Av. Antônio Carlos Magalhães, 2501 - Brotas, Salvador - BA, 40280-901";
   const mapsSearchUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
     fullAddress
@@ -120,9 +127,7 @@ const ContactSection = () => {
                     Nossa Loja
                   </h3>
                   <address className="font-montserrat text-muted-foreground not-italic leading-relaxed">
-                    Av. Antônio Carlos Magalhães, 2501 - Brotas
-                    <br />
-                    Salvador - BA, 40280-901
+                    {fullAddress}
                   </address>
                 </div>
               </div>
