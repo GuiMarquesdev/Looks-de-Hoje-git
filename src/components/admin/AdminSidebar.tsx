@@ -9,6 +9,7 @@ import {
   LogOut,
   Image,
   FileText,
+  Type,
   Settings as SettingsIcon,
   ExternalLink,
   User,
@@ -43,6 +44,11 @@ const sidebarItems = [
     title: "Regras de Aluguel",
     url: "/admin/rules",
     icon: FileText,
+  },
+  {
+    title: "Conteúdo do Site",
+    url: "/admin/content",
+    icon: Type,
   },
   {
     title: "Configurações",

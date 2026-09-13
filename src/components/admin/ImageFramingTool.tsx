@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
@@ -38,7 +38,7 @@ export const ImageFramingTool: React.FC<ImageFramingToolProps> = ({
     });
   };
 
-  const handleMouseMove = (e: MouseEvent) => {
+  const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging || !containerRef.current) return;
 
     const container = containerRef.current;
@@ -53,11 +53,11 @@ export const ImageFramingTool: React.FC<ImageFramingToolProps> = ({
     const percentY = Math.max(0, Math.min(100, (y / rect.height) * 100));
     
     onPositionChange(percentX, percentY);
-  };
+  }, [isDragging, dragStart, onPositionChange]);
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     setIsDragging(false);
-  };
+  }, []);
 
   useEffect(() => {
     if (isDragging) {
@@ -69,7 +69,7 @@ export const ImageFramingTool: React.FC<ImageFramingToolProps> = ({
         window.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDragging, dragStart]);
+  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   const handleReset = () => {
     onPositionChange(50, 50);

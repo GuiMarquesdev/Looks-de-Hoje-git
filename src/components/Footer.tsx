@@ -1,15 +1,19 @@
 import { Instagram, Heart } from "lucide-react";
 import whatsappIcon from "@/assets/whatsapp-icon.svg";
 import { useStoreSettings } from "@/contexts/StoreSettingsContext";
+import { useSiteContent } from "@/contexts/SiteContentContext";
 
 const Footer = () => {
   const { settings, getWhatsAppUrl, getInstagramUrl, getDisplayPhone } = useStoreSettings();
+  const { content } = useSiteContent();
+  const footerContent = content.footer;
+  const headerContent = content.header;
 
   const quickLinks = [
-    { name: "Início", href: "#inicio" },
-    { name: "Coleção", href: "#colecao" },
-    { name: "Regras de Aluguel", href: "#regras" },
-    { name: "Contato", href: "#contato" },
+    { name: headerContent.nav_home || "Início", href: "#inicio" },
+    { name: headerContent.nav_collection || "Coleção", href: "#colecao" },
+    { name: headerContent.nav_rules || "Regras de Aluguel", href: "#regras" },
+    { name: headerContent.nav_contact || "Contato", href: "#contato" },
   ];
 
   const socialLinks = [
@@ -42,8 +46,8 @@ const Footer = () => {
               {settings.store_name || "LooksdeHoje"}
             </h3>
             <p className="font-montserrat text-background/80 leading-relaxed mb-6">
-              Elegância e sofisticação para suas ocasiões especiais. Alugue
-              looks únicos e vista-se com estilo sem comprometer o orçamento.
+              {footerContent.brand_tagline ||
+                "Elegância e sofisticação para suas ocasiões especiais. Alugue looks únicos e vista-se com estilo sem comprometer o orçamento."}
             </p>
 
             {/* Social Links */}
@@ -66,7 +70,7 @@ const Footer = () => {
           {/* Quick Links */}
           <div className="text-center md:text-left">
             <h4 className="font-playfair text-xl font-semibold mb-6 text-background">
-              Links Rápidos
+              {footerContent.quick_links_title || "Links Rápidos"}
             </h4>
             <ul className="space-y-3">
               {quickLinks.map((link) => (
@@ -85,7 +89,7 @@ const Footer = () => {
           {/* Contact Info */}
           <div className="text-center md:text-left">
             <h4 className="font-playfair text-xl font-semibold mb-6 text-background">
-              Contato
+              {footerContent.contact_title || "Contato"}
             </h4>
             <div className="space-y-4">
               <div>
@@ -131,7 +135,9 @@ const Footer = () => {
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             {/* Copyright */}
             <div className="flex items-center space-x-2 text-background/60 font-montserrat text-sm">
-              <span>© 2025 LooksdeHoje. Todos os direitos reservados.</span>
+              <span>
+                {footerContent.copyright_text || "© 2025 LooksdeHoje. Todos os direitos reservados."}
+              </span>
             </div>
 
             {/* Made with Love */}

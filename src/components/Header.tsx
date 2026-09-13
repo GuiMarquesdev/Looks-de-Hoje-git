@@ -5,11 +5,14 @@ import logoLight from "@/assets/logo-light.png";
 import logoDark from "@/assets/logo-dark.png";
 import whatsappIcon from "@/assets/whatsapp-icon.svg";
 import { useStoreSettings } from "@/contexts/StoreSettingsContext";
+import { useSiteContent } from "@/contexts/SiteContentContext";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const { getWhatsAppUrl, settings } = useStoreSettings();
+  const { content } = useSiteContent();
+  const headerContent = content.header;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -71,25 +74,25 @@ const Header = () => {
               onClick={() => scrollToSection("inicio")}
               className="font-montserrat text-sm font-medium text-foreground hover:text-primary transition-colors"
             >
-              Início
+              {headerContent.nav_home || "Início"}
             </button>
             <button
               onClick={() => scrollToSection("colecao")}
               className="font-montserrat text-sm font-medium text-foreground hover:text-primary transition-colors"
             >
-              Coleção
+              {headerContent.nav_collection || "Coleção"}
             </button>
             <button
               onClick={() => scrollToSection("regras")}
               className="font-montserrat text-sm font-medium text-foreground hover:text-primary transition-colors"
             >
-              Regras de Aluguel
+              {headerContent.nav_rules || "Regras de Aluguel"}
             </button>
             <button
               onClick={() => scrollToSection("contato")}
               className="font-montserrat text-sm font-medium text-foreground hover:text-primary transition-colors"
             >
-              Contato
+              {headerContent.nav_contact || "Contato"}
             </button>
           </div>
 
@@ -100,7 +103,7 @@ const Header = () => {
               className="hidden md:flex items-center space-x-2 bg-gradient-gold hover:bg-primary-dark text-primary-foreground font-montserrat font-semibold px-6 py-2 rounded-full shadow-gold transition-all duration-300 hover:-translate-y-0.5"
             >
               <img src={whatsappIcon} alt="WhatsApp" className="w-4 h-4" />
-              <span>Fale pelo WhatsApp</span>
+              <span>{headerContent.cta_button_text || "Fale pelo WhatsApp"}</span>
             </Button>
 
             {/* Mobile Menu Button */}
@@ -125,32 +128,32 @@ const Header = () => {
                 onClick={() => scrollToSection("inicio")}
                 className="block w-full text-left font-montserrat text-sm font-medium text-foreground hover:text-primary transition-colors py-2"
               >
-                Início
+                {headerContent.nav_home || "Início"}
               </button>
               <button
                 onClick={() => scrollToSection("colecao")}
                 className="block w-full text-left font-montserrat text-sm font-medium text-foreground hover:text-primary transition-colors py-2"
               >
-                Coleção
+                {headerContent.nav_collection || "Coleção"}
               </button>
               <button
                 onClick={() => scrollToSection("regras")}
                 className="block w-full text-left font-montserrat text-sm font-medium text-foreground hover:text-primary transition-colors py-2"
               >
-                Regras de Aluguel
+                {headerContent.nav_rules || "Regras de Aluguel"}
               </button>
               <button
                 onClick={() => scrollToSection("contato")}
                 className="block w-full text-left font-montserrat text-sm font-medium text-foreground hover:text-primary transition-colors py-2"
               >
-                Contato
+                {headerContent.nav_contact || "Contato"}
               </button>
               <Button
                 onClick={handleWhatsAppClick}
                 className="w-full flex items-center justify-center space-x-2 bg-gradient-gold hover:bg-primary-dark text-primary-foreground font-montserrat font-semibold px-6 py-3 rounded-full shadow-gold transition-all duration-300 mt-4"
               >
                 <img src={whatsappIcon} alt="WhatsApp" className="w-4 h-4" />
-                <span>Fale pelo WhatsApp</span>
+                <span>{headerContent.cta_button_text || "Fale pelo WhatsApp"}</span>
               </Button>
             </div>
           </div>

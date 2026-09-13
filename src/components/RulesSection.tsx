@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import ContactChannels from "@/components/ContactChannels";
 import { API_URL } from "@/config/api";
+import { useSiteContent } from "@/contexts/SiteContentContext";
 
 interface RuleItem {
   id: string;
@@ -128,14 +129,30 @@ const renderIcon = (iconName: string) => {
 };
 
 const RulesSection = () => {
+  const { content } = useSiteContent();
+  const rulesContent = content.rules;
+
   const [rules, setRules] = useState<RuleItem[]>(defaultRules);
   const [settings, setSettings] = useState<RulesSettings>({
-    title: "Regras de Aluguel",
-    subtitle: "Conheça nossas políticas para garantir uma experiência transparente e segura para todos.",
-    support_title: "Dúvidas sobre nossas regras?",
-    support_description: "Nossa equipe está sempre disponível para esclarecer qualquer questão sobre o processo de aluguel. Entre em contato conosco pelo WhatsApp ou Instagram.",
+    title: rulesContent?.section_title || "Regras de Aluguel",
+    subtitle: rulesContent?.section_subtitle || "Conheça nossas políticas para garantir uma experiência transparente e segura para todos.",
+    support_title: rulesContent?.support_title || "Dúvidas sobre nossas regras?",
+    support_description: rulesContent?.support_description || "Nossa equipe está sempre disponível para esclarecer qualquer questão sobre o processo de aluguel. Entre em contato conosco pelo WhatsApp ou Instagram.",
     support_message: "Olá! Tenho dúvidas sobre as regras de aluguel.",
   });
+
+  // Atualizar quando o content global mudar
+  useEffect(() => {
+    if (rulesContent) {
+      setSettings((prev) => ({
+        ...prev,
+        title: rulesContent.section_title || prev.title,
+        subtitle: rulesContent.section_subtitle || prev.subtitle,
+        support_title: rulesContent.support_title || prev.support_title,
+        support_description: rulesContent.support_description || prev.support_description,
+      }));
+    }
+  }, [rulesContent]);
 
   useEffect(() => {
     const fetchRules = async () => {

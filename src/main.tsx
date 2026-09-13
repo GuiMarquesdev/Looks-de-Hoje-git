@@ -6,12 +6,15 @@ import "./index.css";
 // CAMINHO CORRIGIDO: de "./context/AuthContext.tsx" para "./contexts/AuthContext.tsx"
 import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { StoreSettingsProvider } from "./contexts/StoreSettingsContext.tsx";
+import { SiteContentProvider } from "./contexts/SiteContentContext.tsx";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <AuthProvider>
       <StoreSettingsProvider>
-        <App />
+        <SiteContentProvider>
+          <App />
+        </SiteContentProvider>
       </StoreSettingsProvider>
     </AuthProvider>
   </React.StrictMode>

@@ -74,7 +74,7 @@ export interface RulesSettings {
 }
 
 // Available icons mapping
-export const AVAILABLE_ICONS = [
+const AVAILABLE_ICONS = [
   { name: "Clock", label: "Relógio / Tempo", component: Clock },
   { name: "Truck", label: "Entrega / Frete", component: Truck },
   { name: "Shield", label: "Proteção / Segurança", component: Shield },
@@ -93,7 +93,7 @@ export const AVAILABLE_ICONS = [
   { name: "HelpCircle", label: "Ajuda / Dúvidas", component: HelpCircle },
 ];
 
-export const getIconComponent = (iconName: string) => {
+const getIconComponent = (iconName: string) => {
   const match = AVAILABLE_ICONS.find(
     (i) => i.name.toLowerCase() === (iconName || "").toLowerCase()
   );

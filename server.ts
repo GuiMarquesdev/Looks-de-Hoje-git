@@ -337,6 +337,65 @@ const defaultStoreSettings = {
   updated_at: new Date().toISOString(),
 };
 
+const defaultSiteContent = {
+  header: {
+    nav_home: "Início",
+    nav_collection: "Coleção",
+    nav_rules: "Regras de Aluguel",
+    nav_contact: "Contato",
+    cta_button_text: "Fale pelo WhatsApp",
+  },
+  collection: {
+    section_title: "Nossa Coleção",
+    section_subtitle: "Descubra looks únicos para cada ocasião. Elegância e sofisticação para momentos inesquecíveis.",
+    search_placeholder: "Buscar vestidos, conjuntos, modelos, tamanhos...",
+    filter_all: "Todos",
+    filter_available: "Disponíveis",
+    filter_rented: "Alugados",
+    sort_recent: "Mais recentes",
+    sort_price_asc: "Menor preço",
+    sort_price_desc: "Maior preço",
+    sort_name_asc: "Nome (A-Z)",
+    btn_rent_available: "Alugar no WhatsApp",
+    btn_rent_unavailable: "Me avise quando voltar",
+    btn_view_details: "Ver Detalhes",
+    btn_load_more: "Ver Mais Peças",
+    empty_title: "Nenhuma peça encontrada",
+    empty_description: "Não encontramos peças com os filtros ou termo de busca selecionados.",
+    empty_reset_btn: "Limpar todos os filtros",
+    modal_rent_btn: "Alugar via WhatsApp",
+    modal_notify_btn: "Avise-me quando voltar",
+    modal_measurements_title: "Medidas da Peça",
+  },
+  rules: {
+    section_title: "Regras de Aluguel",
+    section_subtitle: "Conheça nossas políticas para garantir uma experiência transparente e segura para todos.",
+    support_title: "Dúvidas sobre nossas regras?",
+    support_description: "Nossa equipe está sempre disponível para esclarecer qualquer questão sobre o processo de aluguel. Entre em contato conosco pelo WhatsApp ou Instagram.",
+    support_btn_text: "Fale com nossa equipe",
+  },
+  contact: {
+    section_title: "Contato & Localização",
+    section_subtitle: "Entre em contato conosco ou visite nossa loja física. Estamos prontas para ajudar você a encontrar o look perfeito.",
+    whatsapp_card_title: "WhatsApp & Agendamento",
+    whatsapp_card_btn: "Chamar no WhatsApp",
+    instagram_card_title: "Instagram",
+    instagram_card_btn: "Seguir no Instagram",
+    email_card_title: "E-mail",
+    email_card_btn: "Enviar E-mail",
+    hours_title: "Horário de Funcionamento",
+    hours_badge: "Somente com agendamento",
+    store_title: "Nossa Loja",
+    maps_btn_text: "Ver no Google Maps",
+  },
+  footer: {
+    brand_tagline: "Aluguel de roupas e vestidos sofisticados para tornar seus momentos inesquecíveis.",
+    quick_links_title: "Links Rápidos",
+    contact_title: "Contato",
+    copyright_text: "© 2025 LooksdeHoje. Todos os direitos reservados.",
+  },
+};
+
 const defaultRulesSettings = {
   title: "Regras de Aluguel",
   subtitle: "Conheça nossas políticas para garantir uma experiência transparente e segura para todos.",
@@ -468,6 +527,7 @@ interface AppDatabase {
   heroSettings: typeof defaultHeroSettings;
   heroSlides: typeof defaultHeroSlides;
   storeSettings: typeof defaultStoreSettings;
+  siteContent: typeof defaultSiteContent;
   rulesSettings: typeof defaultRulesSettings;
   rules: RuleItem[];
   users: AppUser[];
@@ -485,6 +545,13 @@ function loadDatabase(): AppDatabase {
         heroSettings: parsed.heroSettings || defaultHeroSettings,
         heroSlides: parsed.heroSlides || defaultHeroSlides,
         storeSettings: { ...defaultStoreSettings, ...(parsed.storeSettings || {}) },
+        siteContent: {
+          header: { ...defaultSiteContent.header, ...(parsed.siteContent?.header || {}) },
+          collection: { ...defaultSiteContent.collection, ...(parsed.siteContent?.collection || {}) },
+          rules: { ...defaultSiteContent.rules, ...(parsed.siteContent?.rules || {}) },
+          contact: { ...defaultSiteContent.contact, ...(parsed.siteContent?.contact || {}) },
+          footer: { ...defaultSiteContent.footer, ...(parsed.siteContent?.footer || {}) },
+        },
         rulesSettings: parsed.rulesSettings || defaultRulesSettings,
         rules: parsed.rules || defaultRules,
         users: parsed.users && parsed.users.length > 0 ? parsed.users : defaultUsers,
@@ -499,6 +566,7 @@ function loadDatabase(): AppDatabase {
     heroSettings: defaultHeroSettings,
     heroSlides: defaultHeroSlides,
     storeSettings: defaultStoreSettings,
+    siteContent: defaultSiteContent,
     rulesSettings: defaultRulesSettings,
     rules: defaultRules,
     users: defaultUsers,
@@ -523,6 +591,7 @@ let pieces = db.pieces;
 const heroSettings = db.heroSettings;
 let heroSlides = db.heroSlides;
 const storeSettings = db.storeSettings;
+let siteContent = db.siteContent;
 const rulesSettings = db.rulesSettings;
 let rules = db.rules;
 const users = db.users;
@@ -535,6 +604,7 @@ function persist() {
     heroSettings,
     heroSlides,
     storeSettings,
+    siteContent,
     rulesSettings,
     rules,
     users,
@@ -1105,6 +1175,27 @@ app.get("/api/settings", getStoreSettings);
 app.get("/api/admin/settings", getStoreSettings);
 app.put("/api/settings", requireAuth, requireRole(["admin"]), updateStoreSettings);
 app.put("/api/admin/settings", requireAuth, requireRole(["admin"]), updateStoreSettings);
+
+// Site Content (Text and Buttons Customization)
+const getSiteContent = (req: express.Request, res: express.Response) => {
+  res.json(siteContent);
+};
+const updateSiteContent = (req: express.Request, res: express.Response) => {
+  siteContent = {
+    header: { ...siteContent.header, ...(req.body.header || {}) },
+    collection: { ...siteContent.collection, ...(req.body.collection || {}) },
+    rules: { ...siteContent.rules, ...(req.body.rules || {}) },
+    contact: { ...siteContent.contact, ...(req.body.contact || {}) },
+    footer: { ...siteContent.footer, ...(req.body.footer || {}) },
+  };
+  persist();
+  res.json(siteContent);
+};
+
+app.get("/api/site-content", getSiteContent);
+app.get("/api/admin/site-content", getSiteContent);
+app.put("/api/site-content", requireAuth, requireRole(["admin", "manager"]), updateSiteContent);
+app.put("/api/admin/site-content", requireAuth, requireRole(["admin", "manager"]), updateSiteContent);
 
 // Rules & Rental Policies Endpoints
 app.get("/api/rules", (req, res) => {

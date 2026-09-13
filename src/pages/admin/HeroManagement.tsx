@@ -144,9 +144,11 @@ const HeroManagement = () => {
     fetchHeroData();
   }, []);
 
+  const { reset } = form;
+
   useEffect(() => {
     if (selectedSlide) {
-      form.reset({
+      reset({
         title: selectedSlide.title || "",
         subtitle: selectedSlide.subtitle || "",
         cta_text: selectedSlide.cta_text || "",
@@ -154,7 +156,7 @@ const HeroManagement = () => {
         image_fit: selectedSlide.image_fit || "cover",
       });
     }
-  }, [selectedSlide]);
+  }, [selectedSlide, reset]);
 
   const fetchHeroData = async () => {
     try {

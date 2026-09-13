@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import ProductModal from "@/components/ProductModal";
 import whatsappIcon from "@/assets/whatsapp-icon.svg";
 import { useStoreSettings } from "@/contexts/StoreSettingsContext";
+import { useSiteContent } from "@/contexts/SiteContentContext";
 import { API_URL } from "@/config/api";
 
 const INITIAL_DISPLAY_LIMIT = 6;
@@ -48,6 +49,8 @@ const formatPrice = (price?: number) => {
 
 const CollectionSection = () => {
   const { getWhatsAppUrl, settings } = useStoreSettings();
+  const { content } = useSiteContent();
+  const colContent = content.collection;
 
   const [activeCategory, setActiveCategory] = useState("todos");
   const [searchTerm, setSearchTerm] = useState("");
@@ -97,10 +100,12 @@ const CollectionSection = () => {
 
   const allCategories = useMemo(() => [
     { id: "todos", name: "Todos", count: products.length },
-    ...categories.map((cat) => ({
-      ...cat,
-      count: products.filter((p) => p.category_id === cat.id).length,
-    })),
+    ...categories
+      .filter((cat) => cat.is_active !== false)
+      .map((cat) => ({
+        ...cat,
+        count: products.filter((p) => p.category_id === cat.id).length,
+      })),
   ], [categories, products]);
 
   // Filtragem e ordenação dos produtos
@@ -210,11 +215,11 @@ const CollectionSection = () => {
           {/* Section Header */}
           <div className="text-center mb-12">
             <h2 className="font-playfair text-4xl md:text-5xl font-bold text-foreground mb-4">
-              Nossa Coleção
+              {colContent.section_title || "Nossa Coleção"}
             </h2>
             <p className="font-montserrat text-lg text-muted-foreground max-w-2xl mx-auto">
-              Descubra looks únicos para cada ocasião. Elegância e sofisticação
-              para momentos inesquecíveis.
+              {colContent.section_subtitle ||
+                "Descubra looks únicos para cada ocasião. Elegância e sofisticação para momentos inesquecíveis."}
             </p>
           </div>
 
@@ -229,7 +234,7 @@ const CollectionSection = () => {
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Buscar vestidos, conjuntos, modelos, tamanhos..."
+                  placeholder={colContent.search_placeholder || "Buscar vestidos, conjuntos, modelos, tamanhos..."}
                   className="pl-9 pr-9 h-11 bg-background/80 border-border/80 rounded-xl font-montserrat text-sm focus-visible:ring-primary/40"
                 />
                 {searchTerm && (
@@ -255,7 +260,7 @@ const CollectionSection = () => {
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  Todas
+                  {colContent.filter_all || "Todas"}
                 </button>
                 <button
                   type="button"
@@ -267,7 +272,7 @@ const CollectionSection = () => {
                   }`}
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  Disponíveis
+                  {colContent.filter_available || "Disponíveis"}
                 </button>
                 <button
                   type="button"
@@ -278,7 +283,7 @@ const CollectionSection = () => {
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  Alugadas
+                  {colContent.filter_rented || "Alugadas"}
                 </button>
               </div>
 
@@ -291,10 +296,10 @@ const CollectionSection = () => {
                   className="h-11 px-3 bg-background/80 border border-border/80 rounded-xl text-xs sm:text-sm font-montserrat text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
                   aria-label="Ordenar produtos"
                 >
-                  <option value="recent">Mais Recentes</option>
-                  <option value="price_asc">Menor Preço</option>
-                  <option value="price_desc">Maior Preço</option>
-                  <option value="name_asc">Nome (A - Z)</option>
+                  <option value="recent">{colContent.sort_recent || "Mais Recentes"}</option>
+                  <option value="price_asc">{colContent.sort_price_asc || "Menor Preço"}</option>
+                  <option value="price_desc">{colContent.sort_price_desc || "Maior Preço"}</option>
+                  <option value="name_asc">{colContent.sort_name_asc || "Nome (A - Z)"}</option>
                 </select>
               </div>
             </div>
@@ -508,7 +513,9 @@ const CollectionSection = () => {
                             alt="WhatsApp"
                             className="w-3.5 h-3.5 mr-1.5"
                           />
-                          {isAvailable ? "Alugar" : "Avise-me"}
+                          {isAvailable
+                            ? colContent.btn_rent_available || "Alugar"
+                            : colContent.btn_rent_unavailable || "Avise-me"}
                         </Button>
                       </div>
                     </div>
@@ -519,12 +526,12 @@ const CollectionSection = () => {
               <div className="col-span-full text-center py-16 px-4 bg-card/50 rounded-2xl border border-border/60">
                 <Search className="w-10 h-10 text-muted-foreground/60 mx-auto mb-3" />
                 <h4 className="font-playfair text-xl font-bold text-foreground mb-2">
-                  Nenhuma peça encontrada
+                  {colContent.empty_title || "Nenhuma peça encontrada"}
                 </h4>
                 <p className="font-montserrat text-sm text-muted-foreground max-w-md mx-auto mb-6">
                   {searchTerm
                     ? `Não encontramos resultados para "${searchTerm}". Tente outros termos ou remova filtros.`
-                    : "Não encontramos peças com a combinação de filtros selecionada."}
+                    : colContent.empty_description || "Não encontramos peças com a combinação de filtros selecionada."}
                 </p>
                 {isFilterActive && (
                   <Button
@@ -533,7 +540,7 @@ const CollectionSection = () => {
                     className="font-montserrat text-xs gap-2 rounded-full border-primary/40 text-primary hover:bg-primary/10"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    Limpar filtros e ver todas as peças
+                    {colContent.empty_reset_btn || "Limpar filtros e ver todas as peças"}
                   </Button>
                 )}
               </div>
@@ -549,7 +556,7 @@ const CollectionSection = () => {
                 onClick={handleViewMore}
                 className="font-montserrat font-semibold px-8 py-3 rounded-full border-2 border-primary text-primary hover:bg-gradient-gold hover:text-primary-foreground hover:border-transparent transition-all duration-300"
               >
-                Ver Mais Peças ({filteredAndSortedProducts.length - displayedProducts.length} restantes)
+                {colContent.btn_load_more || "Ver Mais Peças"} ({filteredAndSortedProducts.length - displayedProducts.length} restantes)
               </Button>
             </div>
           )}

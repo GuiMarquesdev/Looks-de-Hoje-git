@@ -2,25 +2,28 @@ import { MapPin, Phone, Instagram, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ContactChannels from "@/components/ContactChannels";
 import { useStoreSettings } from "@/contexts/StoreSettingsContext";
+import { useSiteContent } from "@/contexts/SiteContentContext";
 
 const ContactSection = () => {
   const { settings, getWhatsAppUrl, getInstagramUrl, getDisplayPhone, getDisplayInstagram } =
     useStoreSettings();
+  const { content } = useSiteContent();
+  const contactText = content.contact;
 
   const contactInfo = [
     {
       icon: <Phone className="w-6 h-6" />,
-      title: "WhatsApp",
+      title: contactText.whatsapp_card_title || "WhatsApp",
       info: getDisplayPhone(),
       action: () => window.open(getWhatsAppUrl(), "_blank"),
-      actionText: "Chamar no WhatsApp",
+      actionText: contactText.whatsapp_card_btn || "Chamar no WhatsApp",
     },
     {
       icon: <Instagram className="w-6 h-6" />,
-      title: "Instagram",
+      title: contactText.instagram_card_title || "Instagram",
       info: getDisplayInstagram(),
       action: () => window.open(getInstagramUrl(), "_blank"),
-      actionText: "Seguir no Instagram",
+      actionText: contactText.instagram_card_btn || "Seguir no Instagram",
     },
   ];
 
@@ -29,7 +32,7 @@ const ContactSection = () => {
       day: "Horário",
       hours: settings.working_hours || "Segunda, Quarta e Sexta: 12:00 - 18:00 (Com agendamento)",
     },
-    { day: "Atendimento", hours: "Somente com agendamento prévio" },
+    { day: "Atendimento", hours: contactText.hours_badge || "Somente com agendamento prévio" },
   ];
 
   // Endereço completo para o link de pesquisa
@@ -50,11 +53,11 @@ const ContactSection = () => {
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="font-playfair text-4xl md:text-5xl font-bold text-foreground mb-6">
-            Contato & Localização
+            {contactText.section_title || "Contato & Localização"}
           </h2>
           <p className="font-montserrat text-lg text-muted-foreground max-w-2xl mx-auto">
-            Entre em contato conosco ou visite nossa loja física. Estamos
-            prontas para ajudar você a encontrar o look perfeito.
+            {contactText.section_subtitle ||
+              "Entre em contato conosco ou visite nossa loja física. Estamos prontas para ajudar você a encontrar o look perfeito."}
           </p>
         </div>
 
@@ -95,7 +98,7 @@ const ContactSection = () => {
               <div className="flex items-center mb-4">
                 <Clock className="w-6 h-6 text-primary mr-3" />
                 <h3 className="font-playfair text-xl font-semibold text-foreground">
-                  Horário de Funcionamento
+                  {contactText.hours_title || "Horário de Funcionamento"}
                 </h3>
               </div>
               <div className="space-y-3">
@@ -124,7 +127,7 @@ const ContactSection = () => {
                 <MapPin className="w-6 h-6 text-primary mr-3 mt-1 flex-shrink-0" />
                 <div>
                   <h3 className="font-playfair text-xl font-semibold text-foreground mb-2">
-                    Nossa Loja
+                    {contactText.store_title || "Nossa Loja"}
                   </h3>
                   <address className="font-montserrat text-muted-foreground not-italic leading-relaxed">
                     {fullAddress}
@@ -137,7 +140,7 @@ const ContactSection = () => {
                 onClick={() => window.open(mapsSearchUrl, "_blank")}
               >
                 <MapPin className="w-4 h-4 mr-2" />
-                Ver no Google Maps
+                {contactText.maps_btn_text || "Ver no Google Maps"}
               </Button>
             </div>
 
