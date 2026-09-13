@@ -19,7 +19,7 @@ import {
   LucideIcon,
 } from "lucide-react";
 import ContactChannels from "@/components/ContactChannels";
-import { API_URL } from "@/config/api";
+import { API_URL, isRemoteProductionHost } from "@/config/api";
 import { useSiteContent } from "@/contexts/SiteContentContext";
 import {
   RuleItem,
@@ -118,7 +118,7 @@ const RulesSection = () => {
     const fetchRules = async () => {
       // If we already know the server doesn't support /rules or we are on production without the route, skip the 404 fetch
       const cachedSupport = localStorage.getItem("looksdehoje_rules_server_supported");
-      if (cachedSupport === "false" || API_URL.includes("lookdehoje.com")) {
+      if (cachedSupport === "false" || isRemoteProductionHost()) {
         return;
       }
 

@@ -22,7 +22,7 @@ import {
   MapPin,
   Clock,
 } from "lucide-react";
-import api, { API_URL } from "@/config/api";
+import api, { API_URL, isRemoteProductionHost } from "@/config/api";
 import { useStoreSettings } from "@/contexts/StoreSettingsContext";
 
 interface StoreSettings {
@@ -96,7 +96,7 @@ const Settings: React.FC = () => {
       }
 
       // 2. Fetch 2FA status (only on environments that support it)
-      if (!API_URL.includes("lookdehoje.com")) {
+      if (!isRemoteProductionHost()) {
         try {
           const twoFaRes = await api.get<TwoFactorStatus>("/admin/2fa/status");
           if (twoFaRes.data) {
@@ -163,7 +163,7 @@ const Settings: React.FC = () => {
 
     setSavingPassword(true);
     try {
-      if (API_URL.includes("lookdehoje.com")) {
+      if (isRemoteProductionHost()) {
         toast.info("A API de produção não possui a rota /admin/change-password. Para alterar a senha do admin, atualize na base de dados ou backend PHP.");
         setSavingPassword(false);
         return;
@@ -197,7 +197,7 @@ const Settings: React.FC = () => {
       return;
     }
 
-    if (API_URL.includes("lookdehoje.com")) {
+    if (isRemoteProductionHost()) {
       toast.info("O recurso de 2FA em duas etapas não está configurado na API remota de produção.");
       setShow2FAConfirmDialog(false);
       setTwoFactorPasswordConfirm("");

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import api, { API_URL } from "@/config/api";
+import api, { API_URL, isRemoteProductionHost } from "@/config/api";
 import { SiteContent, defaultSiteContent } from "@/types/siteContent";
 
 interface SiteContentContextType {
@@ -40,7 +40,7 @@ export const SiteContentProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const refreshContent = useCallback(async () => {
     try {
       // If on lookdehoje.com or already detected as unsupported (404), skip network call to keep console clean
-      const isRemoteProduction = API_URL.includes("lookdehoje.com");
+      const isRemoteProduction = isRemoteProductionHost();
       const cachedSupport = localStorage.getItem("looksdehoje_site_content_server_supported");
       if (isRemoteProduction || cachedSupport === "false") {
         setLoading(false);
@@ -121,7 +121,7 @@ export const SiteContentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
     }
 
-    const isRemoteProduction = API_URL.includes("lookdehoje.com");
+    const isRemoteProduction = isRemoteProductionHost();
     const cachedSupport = localStorage.getItem("looksdehoje_site_content_server_supported");
     if (!isRemoteProduction && cachedSupport !== "false") {
       try {

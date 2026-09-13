@@ -55,7 +55,7 @@ import {
 import { toast } from "sonner";
 import { useAdminFeedback } from "@/contexts/AdminFeedbackContext";
 import { useSiteContent } from "@/contexts/SiteContentContext";
-import api, { API_URL } from "@/config/api";
+import api, { API_URL, isRemoteProductionHost } from "@/config/api";
 import {
   RuleItem as RuleCardItem,
   RulesSettings,
@@ -100,7 +100,7 @@ const RulesManagement = () => {
   const [savingRule, setSavingRule] = useState(false);
 
   const [serverSupported, setServerSupported] = useState<boolean>(() => {
-    if (API_URL.includes("lookdehoje.com")) {
+    if (isRemoteProductionHost()) {
       return false;
     }
     try {
@@ -192,7 +192,7 @@ const RulesManagement = () => {
         }
       }
 
-      const isRemoteProduction = API_URL.includes("lookdehoje.com");
+      const isRemoteProduction = isRemoteProductionHost();
       const cachedSupport = localStorage.getItem("looksdehoje_rules_server_supported");
       if (isRemoteProduction || cachedSupport === "false") {
         setServerSupported(false);

@@ -2,6 +2,20 @@ import axios from "axios";
 
 export const API_URL = import.meta.env.VITE_API_URL || "/api";
 
+export const isRemoteProductionHost = (): boolean => {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname || "";
+    if (
+      hostname.includes("lookdehoje") ||
+      hostname.includes("vercel.app") ||
+      API_URL.includes("lookdehoje")
+    ) {
+      return true;
+    }
+  }
+  return API_URL.includes("lookdehoje");
+};
+
 const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
