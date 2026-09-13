@@ -21,81 +21,12 @@ import {
 import ContactChannels from "@/components/ContactChannels";
 import { API_URL } from "@/config/api";
 import { useSiteContent } from "@/contexts/SiteContentContext";
-
-interface RuleItem {
-  id: string;
-  icon: string;
-  title: string;
-  description: string;
-  details: string[];
-  order: number;
-  is_active?: boolean;
-}
-
-interface RulesSettings {
-  title: string;
-  subtitle: string;
-  support_title: string;
-  support_description: string;
-  support_message: string;
-}
-
-const defaultRules: RuleItem[] = [
-  {
-    id: "1",
-    icon: "Clock",
-    title: "Período de Locação",
-    description: "Peças podem ser alugadas por 1 a 7 dias, com possibilidade de extensão mediante disponibilidade.",
-    details: ["Locação mínima: 5 dias corridos", "Locação máxima: 20 dias corridos", "Prorrogação mediante solicitação prévia e disponibilidade da peça"],
-    order: 1,
-    is_active: true,
-  },
-  {
-    id: "2",
-    icon: "Truck",
-    title: "Entrega e Retirada",
-    description: "Entregamos em toda a região metropolitana ou você pode retirar em nossa loja física.",
-    details: ["Entrega por motoboy parceiro com valor calculado conforme a região", "Retirada e devolução mediante agendamento", "Atendimento de segunda a sexta-feira, das 10h às 16h"],
-    order: 2,
-    is_active: true,
-  },
-  {
-    id: "3",
-    icon: "Shield",
-    title: "Cuidados e Segurança",
-    description: "Todas as peças são higienizadas antes e após cada uso com produtos especializados.",
-    details: ["Lavagem profissional", "Produtos antialérgicos", "Embalagem lacrada"],
-    order: 3,
-    is_active: true,
-  },
-  {
-    id: "4",
-    icon: "CreditCard",
-    title: "Forma de Pagamento",
-    description: "Aceitamos PIX, cartão de crédito/débito. Pagamento antecipado obrigatório.",
-    details: ["PIX com desconto", "Cartão até 3x sem juros", "Caução via cartão"],
-    order: 4,
-    is_active: true,
-  },
-  {
-    id: "5",
-    icon: "CheckCircle",
-    title: "Estado das Peças",
-    description: "Todas as roupas devem ser devolvidas nas mesmas condições de retirada.",
-    details: ["Sem manchas ou rasgos", "Perfume suave permitido", "Pequenos desgastes normais"],
-    order: 5,
-    is_active: true,
-  },
-  {
-    id: "6",
-    icon: "AlertCircle",
-    title: "Política de Danos",
-    description: "Em caso de danos irreversíveis, será cobrado o valor de reposição da peça.",
-    details: ["Avaliação criteriosa", "Orçamento transparente", "Parcelamento disponível"],
-    order: 6,
-    is_active: true,
-  },
-];
+import {
+  RuleItem,
+  RulesSettings,
+  defaultRules,
+  defaultRulesSettings,
+} from "@/data/defaultRules";
 
 const iconMap: Record<string, LucideIcon> = {
   clock: Clock,
@@ -132,13 +63,42 @@ const RulesSection = () => {
   const { content } = useSiteContent();
   const rulesContent = content.rules;
 
-  const [rules, setRules] = useState<RuleItem[]>(defaultRules);
-  const [settings, setSettings] = useState<RulesSettings>({
-    title: rulesContent?.section_title || "Regras de Aluguel",
-    subtitle: rulesContent?.section_subtitle || "Conheça nossas políticas para garantir uma experiência transparente e segura para todos.",
-    support_title: rulesContent?.support_title || "Dúvidas sobre nossas regras?",
-    support_description: rulesContent?.support_description || "Nossa equipe está sempre disponível para esclarecer qualquer questão sobre o processo de aluguel. Entre em contato conosco pelo WhatsApp ou Instagram.",
-    support_message: "Olá! Tenho dúvidas sobre as regras de aluguel.",
+  const [rules, setRules] = useState<RuleItem[]>(() => {
+    try {
+      const cached = localStorage.getItem("looksdehoje_rules_data");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed.rules) && parsed.rules.length > 0) {
+          return parsed.rules
+            .filter((r: RuleItem) => r.is_active !== false)
+            .sort((a: RuleItem, b: RuleItem) => (a.order || 0) - (b.order || 0));
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return defaultRules;
+  });
+
+  const [settings, setSettings] = useState<RulesSettings>(() => {
+    try {
+      const cached = localStorage.getItem("looksdehoje_rules_data");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.settings) {
+          return { ...defaultRulesSettings, ...parsed.settings };
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return {
+      title: rulesContent?.section_title || defaultRulesSettings.title,
+      subtitle: rulesContent?.section_subtitle || defaultRulesSettings.subtitle,
+      support_title: rulesContent?.support_title || defaultRulesSettings.support_title,
+      support_description: rulesContent?.support_description || defaultRulesSettings.support_description,
+      support_message: defaultRulesSettings.support_message,
+    };
   });
 
   // Atualizar quando o content global mudar
@@ -156,6 +116,12 @@ const RulesSection = () => {
 
   useEffect(() => {
     const fetchRules = async () => {
+      // If we already know the server doesn't support /rules or we are on production without the route, skip the 404 fetch
+      const cachedSupport = localStorage.getItem("looksdehoje_rules_server_supported");
+      if (cachedSupport === "false" || API_URL.includes("lookdehoje.com")) {
+        return;
+      }
+
       try {
         const response = await fetch(`${API_URL}/rules`);
         if (response.ok) {
@@ -169,9 +135,20 @@ const RulesSection = () => {
               .sort((a: RuleItem, b: RuleItem) => (a.order || 0) - (b.order || 0));
             setRules(activeRules);
           }
+          try {
+            localStorage.setItem("looksdehoje_rules_data", JSON.stringify(data));
+          } catch {
+            // ignore
+          }
+          localStorage.setItem("looksdehoje_rules_server_supported", "true");
+        } else if (response.status === 404) {
+          localStorage.setItem("looksdehoje_rules_server_supported", "false");
+          console.info(
+            "Endpoint /api/rules não encontrado no servidor (404). Exibindo regras locais configuradas."
+          );
         }
-      } catch (err) {
-        console.warn("Usando regras locais como fallback:", err);
+      } catch {
+        // Fallback already in place
       }
     };
 

@@ -95,14 +95,16 @@ const Settings: React.FC = () => {
         });
       }
 
-      // 2. Fetch 2FA status
-      try {
-        const twoFaRes = await api.get<TwoFactorStatus>("/admin/2fa/status");
-        if (twoFaRes.data) {
-          setTwoFactor(twoFaRes.data);
+      // 2. Fetch 2FA status (only on environments that support it)
+      if (!API_URL.includes("lookdehoje.com")) {
+        try {
+          const twoFaRes = await api.get<TwoFactorStatus>("/admin/2fa/status");
+          if (twoFaRes.data) {
+            setTwoFactor(twoFaRes.data);
+          }
+        } catch (err) {
+          console.warn("Could not fetch 2FA status:", err);
         }
-      } catch (err) {
-        console.warn("Could not fetch 2FA status:", err);
       }
     } catch (error: any) {
       console.error("Error fetching settings:", error);
@@ -161,6 +163,12 @@ const Settings: React.FC = () => {
 
     setSavingPassword(true);
     try {
+      if (API_URL.includes("lookdehoje.com")) {
+        toast.info("A API de produção não possui a rota /admin/change-password. Para alterar a senha do admin, atualize na base de dados ou backend PHP.");
+        setSavingPassword(false);
+        return;
+      }
+
       await api.post("/admin/change-password", {
         currentPassword,
         newPassword,
@@ -171,9 +179,13 @@ const Settings: React.FC = () => {
       setNewPassword("");
       setConfirmPassword("");
     } catch (error: any) {
-      toast.error(
-        error.response?.data?.message || "Erro ao atualizar senha. Verifique a senha atual."
-      );
+      if (error?.response?.status === 404) {
+        toast.error("O servidor não possui o recurso de alteração de senha implementado (404).");
+      } else {
+        toast.error(
+          error.response?.data?.message || "Erro ao atualizar senha. Verifique a senha atual."
+        );
+      }
     } finally {
       setSavingPassword(false);
     }
@@ -182,6 +194,13 @@ const Settings: React.FC = () => {
   const handleToggle2FA = async () => {
     if (!twoFactorPasswordConfirm) {
       toast.error("Digite sua senha atual para confirmar a alteração do 2FA.");
+      return;
+    }
+
+    if (API_URL.includes("lookdehoje.com")) {
+      toast.info("O recurso de 2FA em duas etapas não está configurado na API remota de produção.");
+      setShow2FAConfirmDialog(false);
+      setTwoFactorPasswordConfirm("");
       return;
     }
 
@@ -202,9 +221,13 @@ const Settings: React.FC = () => {
       setShow2FAConfirmDialog(false);
       setTwoFactorPasswordConfirm("");
     } catch (error: any) {
-      toast.error(
-        error.response?.data?.message || "Senha incorreta para confirmação do 2FA."
-      );
+      if (error?.response?.status === 404) {
+        toast.error("Endpoint de 2FA não encontrado no servidor (404).");
+      } else {
+        toast.error(
+          error.response?.data?.message || "Senha incorreta para confirmação do 2FA."
+        );
+      }
     } finally {
       setToggling2FA(false);
     }

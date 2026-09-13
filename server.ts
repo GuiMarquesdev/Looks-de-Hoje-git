@@ -1080,9 +1080,43 @@ app.get("/api/hero", (req, res) => {
 });
 
 const updateHeroSettings = (req: AuthenticatedRequest, res: express.Response) => {
-  Object.assign(heroSettings, req.body);
+  const { slides, ...settingsData } = req.body;
+  Object.assign(heroSettings, settingsData);
+
+  // If slides array is provided in the payload, update order and properties
+  if (Array.isArray(slides)) {
+    slides.forEach((incomingSlide: any, index: number) => {
+      const slideId = incomingSlide.id ? String(incomingSlide.id) : null;
+      if (slideId) {
+        const existingSlide = heroSlides.find((s) => String(s.id) === slideId);
+        if (existingSlide) {
+          existingSlide.order = incomingSlide.order ?? index + 1;
+          if (incomingSlide.title !== undefined) existingSlide.title = incomingSlide.title;
+          if (incomingSlide.subtitle !== undefined) existingSlide.subtitle = incomingSlide.subtitle;
+          if (incomingSlide.cta_text !== undefined) existingSlide.cta_text = incomingSlide.cta_text;
+          if (incomingSlide.cta_link !== undefined) existingSlide.cta_link = incomingSlide.cta_link;
+          if (incomingSlide.image_fit !== undefined) existingSlide.image_fit = incomingSlide.image_fit;
+          if (incomingSlide.image_position_x !== undefined) existingSlide.image_position_x = incomingSlide.image_position_x;
+          if (incomingSlide.image_position_y !== undefined) existingSlide.image_position_y = incomingSlide.image_position_y;
+          if (incomingSlide.image_zoom !== undefined) existingSlide.image_zoom = incomingSlide.image_zoom;
+          if (incomingSlide.brightness !== undefined) existingSlide.brightness = incomingSlide.brightness;
+          if (incomingSlide.contrast !== undefined) existingSlide.contrast = incomingSlide.contrast;
+          if (incomingSlide.saturation !== undefined) existingSlide.saturation = incomingSlide.saturation;
+          if (incomingSlide.overlay_opacity !== undefined) existingSlide.overlay_opacity = incomingSlide.overlay_opacity;
+          if (incomingSlide.filter_preset !== undefined) existingSlide.filter_preset = incomingSlide.filter_preset;
+          if (incomingSlide.is_active !== undefined) existingSlide.is_active = incomingSlide.is_active;
+          existingSlide.updated_at = new Date().toISOString();
+        }
+      }
+    });
+    heroSlides.sort((a, b) => (a.order || 0) - (b.order || 0));
+  }
+
   persist();
-  res.json(heroSettings);
+  res.json({
+    settings: heroSettings,
+    slides: [...heroSlides].sort((a, b) => (a.order || 0) - (b.order || 0)),
+  });
 };
 app.post("/api/hero", requireAuth, requireRole(["admin", "manager"]), updateHeroSettings);
 app.put("/api/hero", requireAuth, requireRole(["admin", "manager"]), updateHeroSettings);
@@ -1104,6 +1138,11 @@ app.post(
       image_position_x: req.body.image_position_x ?? 50,
       image_position_y: req.body.image_position_y ?? 50,
       image_zoom: req.body.image_zoom ?? 100,
+      brightness: req.body.brightness ?? 100,
+      contrast: req.body.contrast ?? 100,
+      saturation: req.body.saturation ?? 100,
+      overlay_opacity: req.body.overlay_opacity ?? 50,
+      filter_preset: req.body.filter_preset ?? "none",
       is_active: req.body.is_active ?? 1,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

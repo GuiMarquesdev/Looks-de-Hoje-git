@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { useAdminFeedback } from "@/contexts/AdminFeedbackContext";
 import {
   Type,
   LayoutTemplate,
@@ -23,6 +24,7 @@ import { useSiteContent } from "@/contexts/SiteContentContext";
 import { SiteContent, defaultSiteContent } from "@/types/siteContent";
 
 const ContentManagement: React.FC = () => {
+  const { showSuccess, showError } = useAdminFeedback();
   const { content, updateContent, refreshContent } = useSiteContent();
   const [formData, setFormData] = useState<SiteContent>(defaultSiteContent);
   const [saving, setSaving] = useState(false);
@@ -90,12 +92,29 @@ const ContentManagement: React.FC = () => {
       const success = await updateContent(formData);
       if (success) {
         toast.success("Conteúdo do site atualizado com sucesso!");
+        showSuccess(
+          "Conteúdo do Site Atualizado!",
+          "Todos os títulos, subtítulos, placeholders de busca e textos de botões foram gravados e atualizados na loja.",
+          [
+            `Aba em edição: ${activeTab.toUpperCase()}`,
+            "As alterações já estão ativas para todos os visitantes do site.",
+          ]
+        );
         await refreshContent();
       } else {
         toast.error("Erro ao salvar alterações.");
+        showError(
+          "Falha ao Atualizar Conteúdo",
+          "O servidor não confirmou o salvamento do conteúdo. Tente novamente."
+        );
       }
-    } catch (error) {
+    } catch (error: any) {
       toast.error("Ocorreu um erro inesperado ao salvar.");
+      showError(
+        "Erro Inesperado",
+        "Não foi possível salvar o conteúdo.",
+        error?.message || "Erro de rede"
+      );
     } finally {
       setSaving(false);
     }

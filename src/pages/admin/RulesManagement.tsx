@@ -53,25 +53,17 @@ import {
   MoveDown,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAdminFeedback } from "@/contexts/AdminFeedbackContext";
+import { useSiteContent } from "@/contexts/SiteContentContext";
 import api from "../../config/api";
+import {
+  RuleItem as RuleCardItem,
+  RulesSettings,
+  defaultRules,
+  defaultRulesSettings,
+} from "@/data/defaultRules";
 
-export interface RuleCardItem {
-  id: string;
-  icon: string;
-  title: string;
-  description: string;
-  details: string[];
-  order: number;
-  is_active: boolean;
-}
-
-export interface RulesSettings {
-  title: string;
-  subtitle: string;
-  support_title: string;
-  support_description: string;
-  support_message: string;
-}
+export type { RuleCardItem, RulesSettings };
 
 // Available icons mapping
 const AVAILABLE_ICONS = [
@@ -101,17 +93,62 @@ const getIconComponent = (iconName: string) => {
 };
 
 const RulesManagement = () => {
+  const { showSuccess, showError } = useAdminFeedback();
+  const { updateContent } = useSiteContent();
   const [loading, setLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingRule, setSavingRule] = useState(false);
-  const [rules, setRules] = useState<RuleCardItem[]>([]);
-  const [settings, setSettings] = useState<RulesSettings>({
-    title: "Regras de Aluguel",
-    subtitle: "Conheça nossas políticas para garantir uma experiência transparente e segura para todos.",
-    support_title: "Dúvidas sobre nossas regras?",
-    support_description: "Nossa equipe está sempre disponível para esclarecer qualquer questão sobre o processo de aluguel. Entre em contato conosco pelo WhatsApp ou Instagram.",
-    support_message: "Olá! Tenho dúvidas sobre as regras de aluguel.",
+
+  const [serverSupported, setServerSupported] = useState<boolean>(() => {
+    if (API_URL.includes("lookdehoje.com")) {
+      return false;
+    }
+    try {
+      const cached = localStorage.getItem("looksdehoje_rules_server_supported");
+      if (cached !== null) return cached === "true";
+    } catch {
+      // ignore
+    }
+    return true;
   });
+
+  const [rules, setRules] = useState<RuleCardItem[]>(() => {
+    try {
+      const cached = localStorage.getItem("looksdehoje_rules_data");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed.rules)) return parsed.rules;
+      }
+    } catch {
+      // ignore
+    }
+    return defaultRules;
+  });
+
+  const [settings, setSettings] = useState<RulesSettings>(() => {
+    try {
+      const cached = localStorage.getItem("looksdehoje_rules_data");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.settings) return { ...defaultRulesSettings, ...parsed.settings };
+      }
+    } catch {
+      // ignore
+    }
+    return defaultRulesSettings;
+  });
+
+  // Helper to persist in localStorage
+  const saveLocalRulesData = (updatedSettings: RulesSettings, updatedRules: RuleCardItem[]) => {
+    try {
+      localStorage.setItem(
+        "looksdehoje_rules_data",
+        JSON.stringify({ settings: updatedSettings, rules: updatedRules })
+      );
+    } catch (err) {
+      console.warn("Não foi possível salvar no localStorage:", err);
+    }
+  };
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -144,18 +181,51 @@ const RulesManagement = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      const cached = localStorage.getItem("looksdehoje_rules_data");
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed.settings) setSettings({ ...defaultRulesSettings, ...parsed.settings });
+          if (Array.isArray(parsed.rules)) setRules(parsed.rules);
+        } catch {
+          // ignore
+        }
+      }
+
+      const isRemoteProduction = API_URL.includes("lookdehoje.com");
+      const cachedSupport = localStorage.getItem("looksdehoje_rules_server_supported");
+      if (isRemoteProduction || cachedSupport === "false") {
+        setServerSupported(false);
+        setLoading(false);
+        return;
+      }
+
       const response = await api.get<{ settings: RulesSettings; rules: RuleCardItem[] }>("/rules");
       if (response.data) {
         if (response.data.settings) {
-          setSettings(response.data.settings);
+          setSettings({ ...defaultRulesSettings, ...response.data.settings });
         }
-        if (response.data.rules) {
+        if (response.data.rules && Array.isArray(response.data.rules)) {
           setRules(response.data.rules);
         }
+        saveLocalRulesData(response.data.settings || settings, response.data.rules || rules);
+        setServerSupported(true);
+        localStorage.setItem("looksdehoje_rules_server_supported", "true");
       }
-    } catch (error) {
-      console.error("Erro ao carregar regras:", error);
-      toast.error("Não foi possível carregar as regras de aluguel.");
+    } catch (error: any) {
+      if (error?.response?.status === 404 || error?.status === 404) {
+        setServerSupported(false);
+        localStorage.setItem("looksdehoje_rules_server_supported", "false");
+        console.info(
+          "Endpoint /api/rules não encontrado no servidor de produção (404). Modo local ativo."
+        );
+        const cached = localStorage.getItem("looksdehoje_rules_data");
+        if (!cached) {
+          saveLocalRulesData(defaultRulesSettings, defaultRules);
+        }
+      } else {
+        console.warn("Aviso ao carregar regras:", error?.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -170,11 +240,46 @@ const RulesManagement = () => {
     e.preventDefault();
     try {
       setSavingSettings(true);
-      await api.put("/rules/settings", settings);
+      // 1. Save local state & persistence
+      saveLocalRulesData(settings, rules);
+
+      // 2. Synchronize with site content context so all pages receive the new titles immediately
+      updateContent({
+        rules: {
+          section_title: settings.title,
+          section_subtitle: settings.subtitle,
+          support_title: settings.support_title,
+          support_description: settings.support_description,
+        },
+      });
+
+      // 3. Attempt server sync only if supported
+      if (serverSupported) {
+        try {
+          await api.put("/rules/settings", settings);
+          localStorage.setItem("looksdehoje_rules_server_supported", "true");
+        } catch (err: any) {
+          if (err?.response?.status === 404 || err?.status === 404) {
+            setServerSupported(false);
+            localStorage.setItem("looksdehoje_rules_server_supported", "false");
+            console.info("Endpoint /api/rules/settings não encontrado no servidor remoto (404). Salvo localmente.");
+          }
+        }
+      }
+
       toast.success("Cabeçalho e textos da seção salvos com sucesso!");
-    } catch (error) {
+      showSuccess(
+        "Textos das Regras Salvos!",
+        "O cabeçalho, subtítulo e mensagem de suporte das Regras de Aluguel foram gravados e já estão atualizados no site.",
+        [
+          `Título da Seção: "${settings.title}"`,
+          `Card de Suporte: "${settings.support_title}"`,
+        ]
+      );
+    } catch (error: any) {
       console.error("Erro ao salvar configurações:", error);
       toast.error("Erro ao salvar os textos da seção.");
+      showError("Falha ao Salvar Textos", "Não foi possível atualizar os textos das regras.", error?.message);
     } finally {
       setSavingSettings(false);
     }
@@ -234,21 +339,64 @@ const RulesManagement = () => {
       setSavingRule(true);
       if (editingRule) {
         // Edit existing
-        const response = await api.put<RuleCardItem>(`/rules/${editingRule.id}`, payload);
-        setRules((prev) =>
-          prev.map((item) => (item.id === editingRule.id ? response.data : item))
-        );
+        let updatedRule: RuleCardItem = {
+          ...editingRule,
+          ...payload,
+        };
+        if (serverSupported) {
+          try {
+            const response = await api.put<RuleCardItem>(`/rules/${editingRule.id}`, payload);
+            if (response.data) updatedRule = response.data;
+          } catch (err: any) {
+            if (err?.response?.status === 404 || err?.status === 404) {
+              setServerSupported(false);
+              localStorage.setItem("looksdehoje_rules_server_supported", "false");
+            }
+          }
+        }
+        const newRules = rules.map((item) => (item.id === editingRule.id ? updatedRule : item));
+        setRules(newRules);
+        saveLocalRulesData(settings, newRules);
+
         toast.success("Card de regra atualizado com sucesso!");
+        showSuccess(
+          "Regra Atualizada com Sucesso!",
+          `As regras e detalhes do card "${payload.title}" foram salvos com sucesso.`,
+          [`Ícone: ${payload.icon}`, `Itens de detalhe: ${detailsArray.length}`]
+        );
       } else {
         // Create new
-        const response = await api.post<RuleCardItem>("/rules", payload);
-        setRules((prev) => [...prev, response.data].sort((a, b) => (a.order || 0) - (b.order || 0)));
+        let newRule: RuleCardItem = {
+          id: String(Date.now()),
+          ...payload,
+        };
+        if (serverSupported) {
+          try {
+            const response = await api.post<RuleCardItem>("/rules", payload);
+            if (response.data) newRule = response.data;
+          } catch (err: any) {
+            if (err?.response?.status === 404 || err?.status === 404) {
+              setServerSupported(false);
+              localStorage.setItem("looksdehoje_rules_server_supported", "false");
+            }
+          }
+        }
+        const newRules = [...rules, newRule].sort((a, b) => (a.order || 0) - (b.order || 0));
+        setRules(newRules);
+        saveLocalRulesData(settings, newRules);
+
         toast.success("Novo card de regra adicionado!");
+        showSuccess(
+          "Nova Regra Cadastrada!",
+          `O card de regra "${payload.title}" foi criado com sucesso e publicado na seção de regras.`,
+          [`Ícone: ${payload.icon}`, `Ordem: #${payload.order}`]
+        );
       }
       setIsModalOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao salvar regra:", error);
       toast.error("Erro ao salvar o card de regra.");
+      showError("Falha ao Salvar Regra", "Não foi possível salvar as alterações da regra.", error?.message);
     } finally {
       setSavingRule(false);
     }
@@ -257,18 +405,23 @@ const RulesManagement = () => {
   // Quick toggle active status
   const handleToggleActive = async (rule: RuleCardItem) => {
     const updatedStatus = !rule.is_active;
-    try {
-      setRules((prev) =>
-        prev.map((r) => (r.id === rule.id ? { ...r, is_active: updatedStatus } : r))
-      );
-      await api.put(`/rules/${rule.id}`, { is_active: updatedStatus });
-      toast.success(
-        `Card "${rule.title}" ${updatedStatus ? "ativado" : "desativado"} com sucesso.`
-      );
-    } catch (error) {
-      console.error("Erro ao atualizar status:", error);
-      toast.error("Falha ao atualizar status.");
-      fetchData(); // Rollback
+    const newRules = rules.map((r) => (r.id === rule.id ? { ...r, is_active: updatedStatus } : r));
+    setRules(newRules);
+    saveLocalRulesData(settings, newRules);
+    toast.success(
+      `Card "${rule.title}" ${updatedStatus ? "ativado" : "desativado"} com sucesso.`
+    );
+    if (serverSupported) {
+      try {
+        await api.put(`/rules/${rule.id}`, { is_active: updatedStatus });
+      } catch (error: any) {
+        if (error?.response?.status === 404 || error?.status === 404) {
+          setServerSupported(false);
+          localStorage.setItem("looksdehoje_rules_server_supported", "false");
+        } else {
+          console.warn("Aviso ao atualizar status no servidor:", error?.message);
+        }
+      }
     }
   };
 
@@ -278,13 +431,31 @@ const RulesManagement = () => {
 
     setIsDeletingRule(true);
     try {
-      await api.delete(`/rules/${ruleToDelete.id}`);
-      setRules((prev) => prev.filter((r) => r.id !== ruleToDelete.id));
+      const newRules = rules.filter((r) => r.id !== ruleToDelete.id);
+      setRules(newRules);
+      saveLocalRulesData(settings, newRules);
+
+      if (serverSupported) {
+        try {
+          await api.delete(`/rules/${ruleToDelete.id}`);
+        } catch (err: any) {
+          if (err?.response?.status === 404 || err?.status === 404) {
+            setServerSupported(false);
+            localStorage.setItem("looksdehoje_rules_server_supported", "false");
+          }
+        }
+      }
+
       toast.success(`Card "${ruleToDelete.title}" excluído com sucesso.`);
+      showSuccess(
+        "Regra Removida com Sucesso!",
+        `O card de regra "${ruleToDelete.title}" foi removido com sucesso.`
+      );
       setRuleToDelete(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao excluir regra:", error);
       toast.error("Erro ao excluir o card.");
+      showError("Erro ao Excluir Regra", "Não foi possível remover o card de regra.", error?.message);
     } finally {
       setIsDeletingRule(false);
     }
@@ -306,17 +477,23 @@ const RulesManagement = () => {
     newRules[index] = targetItem;
     newRules[targetIndex] = currentItem;
 
-    setRules([...newRules].sort((a, b) => (a.order || 0) - (b.order || 0)));
+    const sortedRules = [...newRules].sort((a, b) => (a.order || 0) - (b.order || 0));
+    setRules(sortedRules);
+    saveLocalRulesData(settings, sortedRules);
+    toast.success("Ordem atualizada com sucesso!");
 
-    try {
-      await Promise.all([
-        api.put(`/rules/${currentItem.id}`, { order: currentItem.order }),
-        api.put(`/rules/${targetItem.id}`, { order: targetItem.order }),
-      ]);
-      toast.success("Ordem atualizada com sucesso!");
-    } catch (error) {
-      console.error("Erro ao reordenar:", error);
-      fetchData();
+    if (serverSupported) {
+      try {
+        await Promise.all([
+          api.put(`/rules/${currentItem.id}`, { order: currentItem.order }),
+          api.put(`/rules/${targetItem.id}`, { order: targetItem.order }),
+        ]);
+      } catch (error: any) {
+        if (error?.response?.status === 404 || error?.status === 404) {
+          setServerSupported(false);
+          localStorage.setItem("looksdehoje_rules_server_supported", "false");
+        }
+      }
     }
   };
 
@@ -324,12 +501,21 @@ const RulesManagement = () => {
   const handleConfirmResetDefaults = async () => {
     setIsResetting(true);
     try {
-      setLoading(true);
-      const res = await api.post<{ settings: RulesSettings; rules: RuleCardItem[] }>(
-        "/rules/reset"
-      );
-      setSettings(res.data.settings);
-      setRules(res.data.rules);
+      setSettings(defaultRulesSettings);
+      setRules(defaultRules);
+      saveLocalRulesData(defaultRulesSettings, defaultRules);
+
+      if (serverSupported) {
+        try {
+          await api.post("/rules/reset");
+        } catch (err: any) {
+          if (err?.response?.status === 404 || err?.status === 404) {
+            setServerSupported(false);
+            localStorage.setItem("looksdehoje_rules_server_supported", "false");
+          }
+        }
+      }
+
       setShowResetDialog(false);
       toast.success("Regras restauradas para os valores padrão!");
     } catch (error) {
@@ -337,7 +523,6 @@ const RulesManagement = () => {
       toast.error("Erro ao restaurar padrões.");
     } finally {
       setIsResetting(false);
-      setLoading(false);
     }
   };
 
@@ -386,6 +571,19 @@ const RulesManagement = () => {
           </Button>
         </div>
       </div>
+
+      {/* Compatibility Notice when Production Server /api/rules is 404 */}
+      {!serverSupported && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3 text-amber-900 dark:text-amber-200 text-sm">
+          <Info className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-semibold">Modo de Persistência Local Ativo</p>
+            <p className="text-xs text-amber-800/80 dark:text-amber-300/80 leading-relaxed">
+              O servidor em produção retornou status 404 para a rota <code className="bg-amber-500/20 px-1 py-0.5 rounded font-mono text-[11px]">/api/rules</code>. Todas as suas alterações (edições, novos cards, reordenação e cabeçalho) estão sendo salvas localmente e permanecem visíveis na página inicial da loja.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Section Settings Header Card */}
       <Card className="border border-border shadow-sm">

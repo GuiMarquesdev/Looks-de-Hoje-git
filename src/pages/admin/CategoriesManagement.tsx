@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Plus, Search, Edit, Trash2, Tags } from "lucide-react";
 import { toast } from "sonner";
+import { useAdminFeedback } from "@/contexts/AdminFeedbackContext";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -68,6 +69,7 @@ const categorySchema = z.object({
 });
 
 const CategoriesManagement = () => {
+  const { showSuccess, showError } = useAdminFeedback();
   const [searchTerm, setSearchTerm] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,10 +115,20 @@ const CategoriesManagement = () => {
         // EDIÇÃO (PUT)
         await api.put(`/categories/${editingCategory.id}`, payload);
         toast.success("Categoria atualizada com sucesso!");
+        showSuccess(
+          "Categoria Atualizada com Sucesso!",
+          `A categoria "${values.name}" foi atualizada no banco de dados.`,
+          [`Nome: ${values.name}`, `Visibilidade: ${values.is_active ? "Ativa no menu" : "Oculta"}`]
+        );
       } else {
         // CRIAÇÃO (POST)
         await api.post("/categories", payload);
         toast.success("Categoria criada com sucesso!");
+        showSuccess(
+          "Nova Categoria Cadastrada!",
+          `A categoria "${values.name}" foi criada com sucesso e já está disponível para vinculação de vestidos.`,
+          [`Nome: ${values.name}`, `Status: ${values.is_active ? "Ativa" : "Inativa"}`]
+        );
       }
 
       setIsDialogOpen(false);
@@ -128,10 +140,11 @@ const CategoriesManagement = () => {
       // Tratamento de erro 409 (Conflito/Duplicado) ou genérico
       if (error.response?.status === 409) {
         toast.error("Já existe uma categoria com este nome");
+        showError("Nome Duplicado", "Já existe uma categoria com esse nome cadastrada no sistema.");
       } else {
-        toast.error(
-          error.response?.data?.message || "Erro ao salvar categoria"
-        );
+        const msg = error.response?.data?.message || "Erro ao salvar categoria";
+        toast.error(msg);
+        showError("Falha ao Salvar Categoria", "Não foi possível salvar a categoria.", msg);
       }
     }
   };
@@ -143,6 +156,11 @@ const CategoriesManagement = () => {
     try {
       await api.delete(`/categories/${categoryToDelete.id}`);
       toast.success(`Categoria "${categoryToDelete.name}" removida com sucesso!`);
+      showSuccess(
+        "Categoria Removida com Sucesso!",
+        `A categoria "${categoryToDelete.name}" foi excluída do sistema.`,
+        [`ID: ${categoryToDelete.id}`, `Nome: ${categoryToDelete.name}`]
+      );
       setCategoryToDelete(null);
       fetchCategories();
     } catch (error: any) {
@@ -151,8 +169,14 @@ const CategoriesManagement = () => {
         toast.error(
           "Não é possível excluir categoria que possui peças vinculadas"
         );
+        showError(
+          "Exclusão Bloqueada",
+          "Não é possível excluir uma categoria que ainda possui vestidos ou peças vinculadas a ela.",
+          "Desvincule ou exclua as peças dessa categoria primeiro."
+        );
       } else {
         toast.error("Erro ao excluir categoria");
+        showError("Erro ao Excluir Categoria", "Ocorreu um erro no servidor ao tentar remover a categoria.", error?.message);
       }
     } finally {
       setIsDeletingCategory(false);

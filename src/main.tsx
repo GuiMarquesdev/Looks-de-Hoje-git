@@ -7,13 +7,16 @@ import "./index.css";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { StoreSettingsProvider } from "./contexts/StoreSettingsContext.tsx";
 import { SiteContentProvider } from "./contexts/SiteContentContext.tsx";
+import { AdminFeedbackProvider } from "./contexts/AdminFeedbackContext.tsx";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <AuthProvider>
       <StoreSettingsProvider>
         <SiteContentProvider>
-          <App />
+          <AdminFeedbackProvider>
+            <App />
+          </AdminFeedbackProvider>
         </SiteContentProvider>
       </StoreSettingsProvider>
     </AuthProvider>

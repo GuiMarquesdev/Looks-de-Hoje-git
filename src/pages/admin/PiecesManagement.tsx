@@ -71,6 +71,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAdminFeedback } from "@/contexts/AdminFeedbackContext";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -135,6 +136,7 @@ const pieceSchema = z.object({
 type PieceFormValues = z.infer<typeof pieceSchema>;
 
 const PiecesManagement = () => {
+  const { showSuccess, showError } = useAdminFeedback();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("all");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<"all" | "available" | "rented">("all");
@@ -211,9 +213,19 @@ const PiecesManagement = () => {
       const newStatus = piece.status === "available" ? "rented" : "available";
       await api.put(`/pieces/${piece.id}/toggle-status`, { status: newStatus });
       toast.success("Status atualizado!");
+      showSuccess(
+        "Disponibilidade Atualizada!",
+        `O vestido "${piece.name}" foi alterado para o status ${newStatus === "available" ? "Disponível para Aluguel" : "Alugado / Indisponível"}.`,
+        [`Status: ${newStatus === "available" ? "Disponível no catálogo" : "Marcado como alugado"}`]
+      );
       fetchPieces();
-    } catch (error) {
+    } catch (error: any) {
       toast.error("Erro ao alterar status");
+      showError(
+        "Falha ao Alterar Status",
+        `Não foi possível alterar a disponibilidade da peça "${piece.name}".`,
+        error?.message || "Erro desconhecido"
+      );
     }
   };
 
@@ -224,10 +236,20 @@ const PiecesManagement = () => {
     try {
       await api.delete(`/pieces/${pieceToDelete.id}`);
       toast.success(`Peça "${pieceToDelete.name}" removida com sucesso!`);
+      showSuccess(
+        "Peça Removida com Sucesso!",
+        `A peça "${pieceToDelete.name}" foi excluída permanentemente do catálogo e banco de dados.`,
+        [`ID: ${pieceToDelete.id}`, `Nome: ${pieceToDelete.name}`]
+      );
       setPieceToDelete(null);
       fetchPieces();
-    } catch (error) {
+    } catch (error: any) {
       toast.error("Erro ao excluir peça");
+      showError(
+        "Erro ao Excluir Peça",
+        `Não foi possível excluir a peça "${pieceToDelete.name}".`,
+        error?.message || "Falha na comunicação com o servidor"
+      );
     } finally {
       setIsDeletingPiece(false);
     }
@@ -307,9 +329,28 @@ const PiecesManagement = () => {
       if (editingPiece) {
         await api.put(`/pieces/${editingPiece.id}`, pieceData);
         toast.success("Peça atualizada!");
+        showSuccess(
+          "Peça Atualizada com Sucesso!",
+          `As alterações na peça "${values.name}" foram salvas no catálogo e banco de dados.`,
+          [
+            `Nome: ${values.name}`,
+            `Status: ${values.status === "available" ? "Disponível" : "Alugada"}`,
+            `Valor: R$ ${values.price || "0,00"}`,
+            `Total de Imagens: ${finalImages.length}`,
+          ]
+        );
       } else {
         await api.post("/pieces", pieceData);
         toast.success("Peça adicionada!");
+        showSuccess(
+          "Nova Peça Cadastrada!",
+          `A peça "${values.name}" foi adicionada com sucesso ao catálogo da loja.`,
+          [
+            `Nome: ${values.name}`,
+            `Status: ${values.status === "available" ? "Disponível" : "Alugada"}`,
+            `Valor: R$ ${values.price || "0,00"}`,
+          ]
+        );
       }
 
       setIsDialogOpen(false);
@@ -321,10 +362,11 @@ const PiecesManagement = () => {
           .flat()
           .join("\n");
         toast.error(`Validação falhou:\n${msgs}`);
+        showError("Validação Falhou", "Verifique os campos obrigatórios:", msgs);
       } else {
-        toast.error(
-          error.response?.data?.message || error.message || "Erro ao salvar"
-        );
+        const errMsg = error.response?.data?.message || error.message || "Erro ao salvar peça";
+        toast.error(errMsg);
+        showError("Falha ao Salvar Peça", "O servidor não pôde processar a requisição.", errMsg);
       }
     } finally {
       setUploading(false);

@@ -43,20 +43,36 @@ const StoreSettingsContext = createContext<StoreSettingsContextType>({
 });
 
 export const StoreSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [settings, setSettings] = useState<StoreSettings>(defaultSettings);
+  const [settings, setSettings] = useState<StoreSettings>(() => {
+    try {
+      const cached = localStorage.getItem("looksdehoje_store_settings");
+      if (cached) {
+        return { ...defaultSettings, ...JSON.parse(cached) };
+      }
+    } catch {
+      // ignore
+    }
+    return defaultSettings;
+  });
   const [loading, setLoading] = useState(true);
 
   const refreshSettings = useCallback(async () => {
     try {
       const response = await api.get<StoreSettings>("/settings");
       if (response.data) {
-        setSettings({
+        const merged = {
           ...defaultSettings,
           ...response.data,
-        });
+        };
+        setSettings(merged);
+        try {
+          localStorage.setItem("looksdehoje_store_settings", JSON.stringify(merged));
+        } catch {
+          // ignore
+        }
       }
     } catch (error) {
-      console.warn("Could not fetch store settings, using defaults:", error);
+      console.warn("Could not fetch store settings, using cached/defaults:", error);
     } finally {
       setLoading(false);
     }

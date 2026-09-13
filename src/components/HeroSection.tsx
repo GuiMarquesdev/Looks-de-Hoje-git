@@ -19,6 +19,11 @@ interface HeroSlide {
   image_position_x?: number;
   image_position_y?: number;
   image_zoom?: number;
+  brightness?: number;
+  contrast?: number;
+  saturation?: number;
+  overlay_opacity?: number;
+  filter_preset?: string;
 }
 
 const defaultSlides: HeroSlide[] = [
@@ -184,6 +189,11 @@ const HeroSection = () => {
             ? "center top"
             : `${positionX}% ${positionY}%`;
           const backgroundFit = slide.image_fit || "cover";
+          const brightness = slide.brightness ?? 100;
+          const contrast = slide.contrast ?? 100;
+          const saturation = slide.saturation ?? 100;
+          const overlayOpacity = (slide.overlay_opacity ?? 50) / 100;
+          const cssFilter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
 
           return (
             <div
@@ -202,12 +212,19 @@ const HeroSection = () => {
                   backgroundSize: backgroundFit,
                   backgroundPosition: backgroundPos,
                   transformOrigin: `${positionX}% ${positionY}%`,
+                  filter: cssFilter,
                 }}
               />
 
               {/* Sophisticated Luxury Multi-stop Overlay (protecting text legibility) */}
-              <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/35 md:to-transparent" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/50" />
+              <div
+                className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/35 md:to-transparent"
+                style={{ opacity: overlayOpacity }}
+              />
+              <div
+                className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/50"
+                style={{ opacity: overlayOpacity }}
+              />
 
               {/* Subtle Gold Ambient Glow */}
               <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
