@@ -55,7 +55,7 @@ import {
 import { toast } from "sonner";
 import { useAdminFeedback } from "@/contexts/AdminFeedbackContext";
 import { useSiteContent } from "@/contexts/SiteContentContext";
-import api from "../../config/api";
+import api, { API_URL } from "@/config/api";
 import {
   RuleItem as RuleCardItem,
   RulesSettings,

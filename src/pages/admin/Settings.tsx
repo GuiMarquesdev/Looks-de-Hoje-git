@@ -22,7 +22,7 @@ import {
   MapPin,
   Clock,
 } from "lucide-react";
-import api from "@/config/api";
+import api, { API_URL } from "@/config/api";
 import { useStoreSettings } from "@/contexts/StoreSettingsContext";
 
 interface StoreSettings {
