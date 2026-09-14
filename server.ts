@@ -33,6 +33,7 @@ import {
   generateAuthToken,
   generateTemp2FAToken,
   verifyTemp2FAToken,
+  verifyAuthToken,
   extractToken,
   AuthTokenPayload,
   AuthenticatedRequest,
@@ -755,20 +756,52 @@ app.post("/api/logout", (req, res) => {
   res.json({ message: "Logout realizado com sucesso." });
 });
 
-// Auth: Get current session status
-app.get("/api/auth/me", requireAuth, (req: AuthenticatedRequest, res) => {
-  res.json({
+// Auth: Get current session status (returns authenticated: false gracefully if token missing or expired)
+app.get("/api/auth/me", (req, res) => {
+  const token = extractToken(req);
+  if (!token) {
+    return res.json({ authenticated: false, user: null });
+  }
+
+  const decoded = verifyAuthToken(token);
+  if (!decoded) {
+    return res.json({ authenticated: false, user: null });
+  }
+
+  const user = users.find((u) => u.id === decoded.id);
+  if (!user) {
+    return res.json({ authenticated: false, user: null });
+  }
+
+  return res.json({
     authenticated: true,
-    user: req.user,
+    user: {
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      two_factor_enabled: Boolean(user.two_factor_enabled),
+    },
   });
 });
 
-// Admin Security: 2FA Status
-app.get("/api/admin/2fa/status", requireAuth, (req: AuthenticatedRequest, res) => {
-  const user = users.find((u) => u.id === req.user?.id);
-  if (!user) return res.status(404).json({ message: "Usuário não encontrado" });
+// Admin Security: 2FA Status (Read-only status: returns default state gracefully without throwing 401 if unauthenticated)
+app.get("/api/admin/2fa/status", (req, res) => {
+  const token = extractToken(req);
+  if (!token) {
+    return res.json({ enabled: false, pin_hint: null });
+  }
 
-  res.json({
+  const decoded = verifyAuthToken(token);
+  if (!decoded) {
+    return res.json({ enabled: false, pin_hint: null });
+  }
+
+  const user = users.find((u) => u.id === decoded.id);
+  if (!user) {
+    return res.json({ enabled: false, pin_hint: null });
+  }
+
+  return res.json({
     enabled: Boolean(user.two_factor_enabled),
     pin_hint: user.two_factor_enabled ? user.two_factor_pin : null,
   });

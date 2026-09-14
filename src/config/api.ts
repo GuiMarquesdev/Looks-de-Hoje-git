@@ -30,25 +30,30 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// NOVO: Interceptor de Resposta (Trata token expirado)
+// Interceptor de Resposta (Trata token expirado)
 api.interceptors.response.use(
   (response) => {
-    // Se a requisição deu certo, apenas retorna a resposta
     return response;
   },
   (error) => {
-    // Se o erro for 401 (Não Autorizado), significa que o token é inválido ou expirou
+    // Se o erro for 401 (Não Autorizado), limpa o estado de autenticação
     if (error.response && error.response.status === 401) {
-      console.warn("Sessão expirada. Redirecionando para login...");
+      console.warn("Sessão expirada ou não autorizada.");
       
-      // Remove o token inválido
+      // Remove tokens do storage
       localStorage.removeItem("authToken");
+      localStorage.removeItem("authUser");
       
-      // Redireciona o usuário para a tela de login (ajuste a rota conforme o seu projeto)
-      window.location.href = "/admin/login"; 
+      // Redireciona para o login apenas se estiver em uma rota de admin e não já no login
+      if (
+        typeof window !== "undefined" &&
+        window.location.pathname.startsWith("/admin") &&
+        !window.location.pathname.includes("/admin/login")
+      ) {
+        window.location.href = "/admin/login";
+      }
     }
     
-    // Repassa o erro para ser tratado pelo bloco catch do componente, se necessário
     return Promise.reject(error);
   }
 );

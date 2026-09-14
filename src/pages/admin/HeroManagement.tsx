@@ -508,10 +508,10 @@ const HeroManagement = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 self-start md:self-center">
+          <div className="flex items-center gap-3 w-full sm:w-auto self-stretch sm:self-auto">
             <Button
               onClick={addNewSlide}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-gold px-5 py-2.5 rounded-xl transition-all"
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-gold px-4 sm:px-5 py-2.5 rounded-xl transition-all cursor-pointer justify-center"
             >
               <Plus className="w-4 h-4 mr-2" />
               Adicionar Novo Slide
@@ -524,32 +524,32 @@ const HeroManagement = () => {
           {/* Left Column: Slides List & Manager (4 cols on lg) */}
           <div className="lg:col-span-4 space-y-4">
             <Card className="border border-border/80 shadow-sm rounded-2xl overflow-hidden bg-white">
-              <CardHeader className="bg-muted/30 border-b border-border/60 py-4 px-5 flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-base font-bold flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-primary" />
-                    Sequência da Vitrine
+              <CardHeader className="bg-muted/30 border-b border-border/60 py-3 sm:py-4 px-4 sm:px-5 flex flex-row items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 truncate">
+                    <Layers className="w-4 h-4 text-primary shrink-0" />
+                    <span>Sequência da Vitrine</span>
                   </CardTitle>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Selecione para editar ou use as setas para reordenar
+                  <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                    Selecione para editar ou use as setas
                   </p>
                 </div>
                 <Button
                   onClick={addNewSlide}
                   size="sm"
                   variant="ghost"
-                  className="h-8 text-xs font-semibold text-primary hover:bg-primary/10"
+                  className="h-8 px-2.5 text-xs font-semibold text-primary hover:bg-primary/10 shrink-0 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5 mr-1" />
                   Slide
                 </Button>
               </CardHeader>
-              <CardContent className="p-4 space-y-3">
+              <CardContent className="p-3 sm:p-4 space-y-2.5 sm:space-y-3">
                 {sortedSlides.length === 0 ? (
                   <div className="text-center py-10 px-4 border-2 border-dashed border-border rounded-xl">
                     <ImageIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-50" />
                     <p className="text-sm font-medium text-muted-foreground">Nenhum slide cadastrado</p>
-                    <Button onClick={addNewSlide} size="sm" variant="outline" className="mt-3 text-xs">
+                    <Button onClick={addNewSlide} size="sm" variant="outline" className="mt-3 text-xs cursor-pointer">
                       Criar primeiro slide
                     </Button>
                   </div>
@@ -564,7 +564,7 @@ const HeroManagement = () => {
                         key={slide.id || index}
                         onClick={() => setSelectedSlide(slide)}
                         className={`
-                          p-3 rounded-xl border transition-all cursor-pointer select-none
+                          p-2.5 sm:p-3 rounded-xl border transition-all cursor-pointer select-none
                           ${
                             isSelected
                               ? "border-primary bg-primary/5 shadow-sm ring-2 ring-primary/30"
@@ -572,7 +572,7 @@ const HeroManagement = () => {
                           }
                         `}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3">
                           {/* Order Badge */}
                           <div
                             className={`w-6 h-6 rounded-lg text-xs font-bold flex items-center justify-center flex-shrink-0 ${
@@ -586,7 +586,7 @@ const HeroManagement = () => {
 
                           {/* Thumbnail */}
                           <div
-                            className="w-16 h-12 rounded-lg bg-cover bg-center flex-shrink-0 border border-black/10 shadow-xs relative overflow-hidden"
+                            className="w-14 sm:w-16 h-10 sm:h-12 rounded-lg bg-cover bg-center flex-shrink-0 border border-black/10 shadow-xs relative overflow-hidden"
                             style={{
                               backgroundImage: `url(${slide.image_url})`,
                               backgroundPosition: `${slide.image_position_x || 50}% ${slide.image_position_y || 50}%`,
@@ -606,37 +606,37 @@ const HeroManagement = () => {
                           </div>
 
                           {/* Controls */}
-                          <div className="flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-30 cursor-pointer"
                               title="Mover para cima"
                               disabled={isFirst}
                               onClick={() => moveSlide(index, "up")}
                             >
-                              <ChevronUp className="w-3.5 h-3.5" />
+                              <ChevronUp className="w-4 h-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-30 cursor-pointer"
                               title="Mover para baixo"
                               disabled={isLast}
                               onClick={() => moveSlide(index, "down")}
                             >
-                              <ChevronDown className="w-3.5 h-3.5" />
+                              <ChevronDown className="w-4 h-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 cursor-pointer"
                               title="Excluir slide"
                               onClick={() => {
                                 if (slide.id) setSlideIdToDelete(slide.id);
                               }}
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </div>
@@ -692,10 +692,10 @@ const HeroManagement = () => {
           <div className="lg:col-span-8 space-y-4">
             {selectedSlide ? (
               <Card className="border border-border/80 shadow-sm rounded-2xl bg-white overflow-hidden">
-                <CardHeader className="bg-muted/30 border-b border-border/60 py-4 px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <CardHeader className="bg-muted/30 border-b border-border/60 py-3.5 sm:py-4 px-3.5 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-lg font-bold">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <CardTitle className="text-base sm:text-lg font-bold">
                         Ajuste Visual do Slide #{selectedSlide.order || 1}
                       </CardTitle>
                       <Badge variant="outline" className="text-[10px] font-mono border-border">
@@ -707,12 +707,12 @@ const HeroManagement = () => {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setEditDialogOpen(true)}
-                      className="text-xs font-semibold h-9 rounded-xl border-border/80 gap-1.5"
+                      className="text-xs font-semibold h-9 rounded-xl border-border/80 gap-1.5 flex-1 sm:flex-initial"
                     >
                       <Edit className="w-3.5 h-3.5" />
                       Editar Textos & CTA
@@ -722,7 +722,7 @@ const HeroManagement = () => {
                       size="sm"
                       onClick={handleSaveEditorChanges}
                       disabled={isSavingQuick}
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-gold h-9 rounded-xl gap-1.5 px-4"
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-gold h-9 rounded-xl gap-1.5 px-4 flex-1 sm:flex-initial"
                     >
                       {isSavingQuick ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -734,7 +734,7 @@ const HeroManagement = () => {
                   </div>
                 </CardHeader>
 
-                <CardContent className="p-6">
+                <CardContent className="p-3.5 sm:p-6">
                   {/* The interactive HeroImageEditor */}
                   <HeroImageEditor
                     slide={selectedSlide}

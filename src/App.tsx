@@ -25,6 +25,10 @@ function App() {
         {/* Rota Home/Pública */}
         <Route path="/" element={<Index />} />
 
+        {/* Atalhos/Redirecionamentos comuns de digitação rápida do admin */}
+        <Route path="/ad" element={<Navigate to="/admin" replace />} />
+        <Route path="/adm" element={<Navigate to="/admin" replace />} />
+
         {/* Rota de Login do Admin (PÚBLICA) */}
         <Route path="/admin/login" element={<AdminLogin />} />
 
@@ -32,21 +36,17 @@ function App() {
         {/* Todas as rotas dentro deste <Route> serão protegidas pelo ProtectedRoute */}
         <Route path="/admin" element={<ProtectedRoute />}>
           {/* O elemento Admin contém o layout (Sidebar + Header + Content) */}
-          <Route path="/admin" element={<Admin />}>
-            <Route index element={<Navigate to="dashboard" replace />} />{" "}
+          <Route element={<Admin />}>
+            <Route index element={<Navigate to="dashboard" replace />} />
             {/* Redireciona /admin para /admin/dashboard */}
             <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="pieces" element={<PiecesManagement />} />{" "}
-            {/* CORRIGIDO: de "pecas" para "pieces" */}
-            <Route path="categories" element={<CategoriesManagement />} />{" "}
-            {/* CORRIGIDO: de "categorias" para "categories" */}
+            <Route path="pieces" element={<PiecesManagement />} />
+            <Route path="categories" element={<CategoriesManagement />} />
             <Route path="hero" element={<HeroManagement />} />
             <Route path="rules" element={<RulesManagement />} />
             <Route path="content" element={<ContentManagement />} />
-            <Route path="settings" element={<Settings />} />{" "}
-            {/* CORREÇÃO FINAL: de "config" para "settings" */}
-            <Route path="*" element={<AdminNotFound />} />{" "}
-            {/* Rota 404 para o Admin */}
+            <Route path="settings" element={<Settings />} />
+            <Route path="*" element={<AdminNotFound />} />
           </Route>
         </Route>
 

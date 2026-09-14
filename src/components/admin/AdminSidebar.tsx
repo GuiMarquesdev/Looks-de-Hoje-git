@@ -13,11 +13,17 @@ import {
   Settings as SettingsIcon,
   ExternalLink,
   User,
+  X,
 } from "lucide-react";
 import logoAdmin from "@/assets/logo-admin-circular.png";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+
+interface AdminSidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
 
 const sidebarItems = [
   {
@@ -57,7 +63,7 @@ const sidebarItems = [
   },
 ];
 
-const AdminSidebar = () => {
+const AdminSidebar = ({ isOpen, onClose }: AdminSidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -72,49 +78,76 @@ const AdminSidebar = () => {
   };
 
   return (
-    <div className="w-64 bg-card border-r border-border h-screen flex flex-col shadow-sm select-none">
-      {/* Header */}
-      <div className="p-6 border-b border-border">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 flex items-center justify-center">
-            <img
-              src={logoAdmin}
-              alt="LooksdeHoje Logo"
-              className="w-full h-full object-contain rounded-full shadow-sm"
-            />
-          </div>
-          <div>
-            <h1 className="font-playfair text-lg font-semibold text-foreground tracking-tight">
-              LooksdeHoje
-            </h1>
-            <p className="text-xs text-muted-foreground font-montserrat">
-              Painel Administrativo
-            </p>
-          </div>
-        </div>
-      </div>
+    <>
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-40 md:hidden transition-opacity"
+          aria-hidden="true"
+        />
+      )}
 
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
-        {sidebarItems.map((item) => {
-          const isActive = location.pathname === item.url;
-          return (
-            <NavLink
-              key={item.title}
-              to={item.url}
-              className={cn(
-                "flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all font-montserrat",
-                isActive
-                  ? "bg-primary text-primary-foreground shadow-sm font-semibold"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              )}
+      <aside
+        className={cn(
+          "w-64 bg-card border-r border-border h-screen flex flex-col shadow-sm select-none shrink-0 z-50 transition-transform duration-300 ease-in-out",
+          "fixed inset-y-0 left-0 md:static md:translate-x-0",
+          isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full md:translate-x-0"
+        )}
+      >
+        {/* Header */}
+        <div className="p-5 sm:p-6 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 flex items-center justify-center">
+              <img
+                src={logoAdmin}
+                alt="LooksdeHoje Logo"
+                className="w-full h-full object-contain rounded-full shadow-sm"
+              />
+            </div>
+            <div>
+              <h1 className="font-playfair text-lg font-semibold text-foreground tracking-tight">
+                LooksdeHoje
+              </h1>
+              <p className="text-xs text-muted-foreground font-montserrat">
+                Painel Administrativo
+              </p>
+            </div>
+          </div>
+
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="md:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+              aria-label="Fechar navegação"
             >
-              <item.icon className="w-4 h-4 shrink-0" />
-              {item.title}
-            </NavLink>
-          );
-        })}
-      </nav>
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
+          {sidebarItems.map((item) => {
+            const isActive = location.pathname === item.url;
+            return (
+              <NavLink
+                key={item.title}
+                to={item.url}
+                onClick={() => onClose?.()}
+                className={cn(
+                  "flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all font-montserrat",
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                )}
+              >
+                <item.icon className="w-4 h-4 shrink-0" />
+                {item.title}
+              </NavLink>
+            );
+          })}
+        </nav>
 
       {/* Footer / User Profile & Actions */}
       <div className="p-4 border-t border-border bg-card/50 space-y-2">
@@ -155,7 +188,8 @@ const AdminSidebar = () => {
           Sair da Conta
         </Button>
       </div>
-    </div>
+    </aside>
+  </>
   );
 };
 

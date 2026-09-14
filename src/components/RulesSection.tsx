@@ -159,47 +159,47 @@ const RulesSection = () => {
     <section id="regras" className="py-20 bg-background">
       <div className="container mx-auto px-4">
         {/* Section Header */}
-        <div className="text-center mb-16">
-          <h2 className="font-playfair text-4xl md:text-5xl font-bold text-foreground mb-6">
+        <div className="text-center mb-12 sm:mb-16">
+          <h2 className="font-playfair text-3xl sm:text-4xl md:text-5xl font-bold text-foreground mb-4 sm:mb-6">
             {settings.title}
           </h2>
-          <p className="font-montserrat text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="font-montserrat text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
             {settings.subtitle}
           </p>
         </div>
 
         {/* Rules Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-fade-in">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 animate-fade-in">
           {rules.map((rule) => (
             <div
               key={rule.id}
-              className="luxury-card hover-lift group p-8 text-center"
+              className="luxury-card hover-lift group p-6 sm:p-8 text-center"
             >
               {/* Icon */}
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-secondary/30 text-primary mb-6 group-hover:scale-110 transition-transform duration-300">
+              <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-secondary/40 text-primary mb-5 sm:mb-6 group-hover:scale-110 transition-transform duration-300">
                 {renderIcon(rule.icon)}
               </div>
 
               {/* Title */}
-              <h3 className="font-playfair text-xl font-semibold text-foreground mb-4 group-hover:text-primary transition-colors">
+              <h3 className="font-playfair text-lg sm:text-xl font-semibold text-foreground mb-3 sm:mb-4 group-hover:text-primary transition-colors">
                 {rule.title}
               </h3>
 
               {/* Description */}
-              <p className="font-montserrat text-muted-foreground mb-6 leading-relaxed">
+              <p className="font-montserrat text-sm sm:text-base text-muted-foreground mb-5 sm:mb-6 leading-relaxed">
                 {rule.description}
               </p>
 
               {/* Details */}
               {rule.details && rule.details.length > 0 && (
-                <ul className="space-y-2">
+                <ul className="space-y-2.5">
                   {rule.details.map((detail, detailIndex) => (
                     <li 
                       key={detailIndex}
-                      className="font-montserrat text-sm text-muted-foreground flex items-center justify-center"
+                      className="font-montserrat text-xs sm:text-sm text-muted-foreground flex items-start text-left sm:items-center sm:justify-center"
                     >
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary mr-3 flex-shrink-0" />
-                      {detail}
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary mr-2.5 mt-1.5 sm:mt-0 flex-shrink-0" />
+                      <span>{detail}</span>
                     </li>
                   ))}
                 </ul>
@@ -209,12 +209,12 @@ const RulesSection = () => {
         </div>
 
         {/* Additional Info */}
-        <div className="mt-16 p-8 rounded-2xl bg-secondary/30 border border-primary/20">
+        <div className="mt-12 sm:mt-16 p-6 sm:p-8 rounded-2xl bg-secondary/30 border border-primary/20">
           <div className="text-center max-w-4xl mx-auto">
-            <h3 className="font-playfair text-2xl font-semibold text-foreground mb-4">
+            <h3 className="font-playfair text-xl sm:text-2xl font-semibold text-foreground mb-3 sm:mb-4">
               {settings.support_title}
             </h3>
-            <p className="font-montserrat text-muted-foreground mb-6">
+            <p className="font-montserrat text-sm sm:text-base text-muted-foreground mb-6">
               {settings.support_description}
             </p>
             <ContactChannels 

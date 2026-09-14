@@ -204,6 +204,18 @@ const AdminLogin: React.FC = () => {
               <Button type="submit" className="w-full mt-2" disabled={isLoading}>
                 {isLoading ? "Validando credenciais..." : "Entrar com Segurança"}
               </Button>
+              <div className="pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUsername("admin");
+                    setPassword("admin123");
+                  }}
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors underline cursor-pointer"
+                >
+                  Preencher dados de acesso padrão (admin / admin123)
+                </button>
+              </div>
             </form>
           ) : (
             <form onSubmit={handleVerify2FA} className="grid gap-4">

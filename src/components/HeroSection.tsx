@@ -70,6 +70,8 @@ const useIsMobile = (breakpoint = 768) => {
   return isMobile;
 };
 
+const AUTOPLAY_INTERVAL = 5000;
+
 const HeroSection = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [slides, setSlides] = useState<HeroSlide[]>([]);
@@ -108,12 +110,24 @@ const HeroSection = () => {
     }
   };
 
+  // Preload slide images to eliminate lag / stutter during auto-transitions
+  useEffect(() => {
+    if (!slides || slides.length === 0) return;
+    slides.forEach((slide) => {
+      if (slide.image_url) {
+        const img = new Image();
+        img.src = slide.image_url;
+      }
+    });
+  }, [slides]);
+
+  // Smooth auto-slide timer
   useEffect(() => {
     if (slides.length <= 1 || isPaused) return;
 
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 6000);
+    }, AUTOPLAY_INTERVAL);
 
     return () => clearInterval(timer);
   }, [slides.length, isPaused, currentSlide]);
@@ -174,16 +188,13 @@ const HeroSection = () => {
     <section
       id="inicio"
       className="relative min-h-[92vh] md:min-h-screen overflow-hidden bg-zinc-950 select-none flex flex-col justify-between"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
     >
       {/* Background Layers & Images with enhanced framing */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0 pointer-events-none">
         {slides.map((slide, index) => {
           const isActive = index === currentSlide;
           const positionX = slide.image_position_x ?? 50;
           const positionY = slide.image_position_y ?? 50;
-          const zoomScale = (slide.image_zoom ?? 100) / 100;
 
           const backgroundPos = isMobile
             ? "center top"
@@ -198,14 +209,14 @@ const HeroSection = () => {
           return (
             <div
               key={slide.id || index}
-              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                isActive ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+              className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+                isActive ? "opacity-100 z-1" : "opacity-0 z-0"
               }`}
             >
               {/* Image with subtle Ken Burns effect */}
               <div
-                className={`absolute inset-0 bg-no-repeat transition-transform duration-[7000ms] ease-out will-change-transform ${
-                  isActive ? "scale-[1.04]" : "scale-100"
+                className={`absolute inset-0 bg-no-repeat transition-transform ease-out will-change-transform ${
+                  isActive ? "scale-105" : "scale-100"
                 }`}
                 style={{
                   backgroundImage: `url('${slide.image_url}')`,
@@ -213,6 +224,7 @@ const HeroSection = () => {
                   backgroundPosition: backgroundPos,
                   transformOrigin: `${positionX}% ${positionY}%`,
                   filter: cssFilter,
+                  transitionDuration: `${AUTOPLAY_INTERVAL}ms`,
                 }}
               />
 
@@ -239,7 +251,7 @@ const HeroSection = () => {
           {/* Slide Title with High-Contrast Typography */}
           <h1
             key={`title-${currentSlide}`}
-            className="font-playfair text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-[1.1] tracking-tight drop-shadow-md transition-all duration-500 animate-fade-in"
+            className="font-playfair text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white mb-4 sm:mb-6 leading-[1.15] sm:leading-[1.1] tracking-tight drop-shadow-md animate-hero-text"
           >
             {activeSlideData.title}
           </h1>
@@ -247,18 +259,18 @@ const HeroSection = () => {
           {/* Subtitle */}
           <p
             key={`sub-${currentSlide}`}
-            className="font-montserrat text-base sm:text-lg md:text-xl text-white/85 mb-8 max-w-xl leading-relaxed font-light drop-shadow transition-all duration-500"
+            className="font-montserrat text-sm sm:text-lg md:text-xl text-white/90 mb-6 sm:mb-8 max-w-xl leading-relaxed font-light drop-shadow animate-hero-text"
           >
             {activeSlideData.subtitle}
           </p>
 
           {/* Action CTAs */}
-          <div className="flex flex-wrap items-center gap-4 pt-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 pt-2">
             <Button
               id="hero-cta-collection"
               onClick={scrollToCollection}
               size="lg"
-              className="bg-gradient-gold hover:bg-amber-400 text-black font-montserrat font-bold px-7 py-6 rounded-full shadow-gold transition-all duration-300 hover:scale-105 border border-amber-300/60 text-base"
+              className="w-full sm:w-auto bg-gradient-gold hover:bg-amber-400 text-black font-montserrat font-bold px-7 py-5 sm:py-6 rounded-full shadow-gold transition-all duration-300 hover:scale-105 border border-amber-300/60 text-sm sm:text-base justify-center touch-manipulation cursor-pointer"
             >
               Explorar Catálogo
             </Button>
@@ -268,29 +280,29 @@ const HeroSection = () => {
               onClick={scrollToRules}
               variant="outline"
               size="lg"
-              className="bg-white/10 hover:bg-white/20 text-white font-montserrat font-semibold px-6 py-6 rounded-full backdrop-blur-md border border-white/25 transition-all duration-300 hover:scale-105 text-base cursor-pointer"
+              className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white font-montserrat font-semibold px-6 py-5 sm:py-6 rounded-full backdrop-blur-md border border-white/25 transition-all duration-300 hover:scale-105 text-sm sm:text-base cursor-pointer justify-center touch-manipulation"
             >
               Como Funciona
             </Button>
           </div>
 
           {/* Quick Value Props in Editorial Strip */}
-          <div className="grid grid-cols-3 gap-4 sm:gap-6 mt-12 pt-8 border-t border-white/15 max-w-xl">
-            <div className="flex items-center gap-2 sm:gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6 mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-white/15 max-w-xl">
+            <div className="flex items-center gap-2.5">
               <Award className="w-4 h-4 text-amber-400 shrink-0" />
-              <span className="font-montserrat text-xs text-white/80 font-medium">
+              <span className="font-montserrat text-xs text-white/90 font-medium">
                 Alta Costura & Grife
               </span>
             </div>
-            <div className="flex items-center gap-2 sm:gap-2.5">
+            <div className="flex items-center gap-2.5">
               <Clock className="w-4 h-4 text-amber-400 shrink-0" />
-              <span className="font-montserrat text-xs text-white/80 font-medium">
+              <span className="font-montserrat text-xs text-white/90 font-medium">
                 Aluguel Simples e Rápido
               </span>
             </div>
-            <div className="flex items-center gap-2 sm:gap-2.5">
+            <div className="flex items-center gap-2.5">
               <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
-              <span className="font-montserrat text-xs text-white/80 font-medium">
+              <span className="font-montserrat text-xs text-white/90 font-medium">
                 Peças Higienizadas
               </span>
             </div>
@@ -299,7 +311,12 @@ const HeroSection = () => {
       </div>
 
       {/* Bottom Bar: Progress Bars, Counters & Controls */}
-      <div className="relative z-10 border-t border-white/10 bg-black/40 backdrop-blur-md py-4">
+      <div
+        id="hero-bottom-controls"
+        className="relative z-10 border-t border-white/10 bg-black/40 backdrop-blur-md py-4"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+      >
         <div className="container mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between gap-4">
           {/* Slide Counters & Segmented Progress Bars */}
           <div className="flex items-center gap-3 sm:gap-4">
@@ -312,7 +329,7 @@ const HeroSection = () => {
                 <button
                   key={index}
                   onClick={() => setCurrentSlide(index)}
-                  className="relative h-1.5 rounded-full overflow-hidden transition-all duration-300"
+                  className="relative h-1.5 rounded-full overflow-hidden transition-all duration-300 cursor-pointer"
                   style={{
                     width: index === currentSlide ? "3rem" : "1.25rem",
                     backgroundColor: "rgba(255, 255, 255, 0.2)",
@@ -321,9 +338,12 @@ const HeroSection = () => {
                 >
                   {index === currentSlide && (
                     <span
-                      className="absolute inset-0 bg-gradient-to-r from-amber-400 to-amber-200"
+                      key={`progress-${currentSlide}-${isPaused}`}
+                      className="absolute inset-0 bg-gradient-to-r from-amber-400 to-amber-200 origin-left"
                       style={{
-                        animation: isPaused ? "none" : "progress 6s linear forwards",
+                        animation: isPaused
+                          ? "none"
+                          : `progress ${AUTOPLAY_INTERVAL}ms linear forwards`,
                       }}
                     />
                   )}
@@ -341,7 +361,7 @@ const HeroSection = () => {
             <button
               onClick={prevSlide}
               aria-label="Slide anterior"
-              className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all duration-200 border border-white/10 hover:border-amber-400/40 hover:scale-105 active:scale-95"
+              className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all duration-200 border border-white/10 hover:border-amber-400/40 hover:scale-105 active:scale-95 cursor-pointer"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -349,7 +369,7 @@ const HeroSection = () => {
             <button
               onClick={nextSlide}
               aria-label="Próximo slide"
-              className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all duration-200 border border-white/10 hover:border-amber-400/40 hover:scale-105 active:scale-95"
+              className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all duration-200 border border-white/10 hover:border-amber-400/40 hover:scale-105 active:scale-95 cursor-pointer"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -357,7 +377,7 @@ const HeroSection = () => {
             <button
               onClick={scrollToCollection}
               aria-label="Rolar para a coleção"
-              className="hidden md:flex items-center gap-1.5 ml-4 pl-4 border-l border-white/15 text-white/70 hover:text-amber-400 text-xs font-montserrat font-medium transition-colors"
+              className="hidden md:flex items-center gap-1.5 ml-4 pl-4 border-l border-white/15 text-white/70 hover:text-amber-400 text-xs font-montserrat font-medium transition-colors cursor-pointer"
             >
               <span>Descer</span>
               <ArrowDown className="w-3.5 h-3.5 animate-bounce" />

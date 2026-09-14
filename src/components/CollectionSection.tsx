@@ -226,7 +226,7 @@ const CollectionSection = () => {
           {/* Search and Advanced Filters Container */}
           <div className="max-w-4xl mx-auto mb-10 space-y-4">
             {/* Top Filter Bar: Search + Status Toggle + Sort */}
-            <div className="bg-card/90 backdrop-blur-md p-3.5 sm:p-4 rounded-2xl border border-border/70 shadow-sm flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+            <div className="bg-card/90 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-border/70 shadow-sm flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
               {/* Search Bar Input */}
               <div className="relative flex-1">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -249,58 +249,60 @@ const CollectionSection = () => {
                 )}
               </div>
 
-              {/* Status Segmented Control */}
-              <div className="flex items-center gap-1 bg-muted/70 p-1 rounded-xl shrink-0 self-start sm:self-auto">
-                <button
-                  type="button"
-                  onClick={() => setStatusFilter("all")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-montserrat font-medium transition-all ${
-                    statusFilter === "all"
-                      ? "bg-card text-foreground shadow-sm font-semibold"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {colContent.filter_all || "Todas"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStatusFilter("available")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-montserrat font-medium transition-all flex items-center gap-1.5 ${
-                    statusFilter === "available"
-                      ? "bg-emerald-600 text-white shadow-sm font-semibold"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  {colContent.filter_available || "Disponíveis"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStatusFilter("rented")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-montserrat font-medium transition-all ${
-                    statusFilter === "rented"
-                      ? "bg-card text-foreground shadow-sm font-semibold"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {colContent.filter_rented || "Alugadas"}
-                </button>
-              </div>
+              {/* Status Segmented Control & Sort Dropdown */}
+              <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 w-full md:w-auto">
+                <div className="flex items-center gap-1 bg-muted/70 p-1 rounded-xl shrink-0 overflow-x-auto max-w-full">
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter("all")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-montserrat font-medium transition-all ${
+                      statusFilter === "all"
+                        ? "bg-card text-foreground shadow-sm font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {colContent.filter_all || "Todas"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter("available")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-montserrat font-medium transition-all flex items-center gap-1.5 ${
+                      statusFilter === "available"
+                        ? "bg-emerald-600 text-white shadow-sm font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    {colContent.filter_available || "Disponíveis"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter("rented")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-montserrat font-medium transition-all ${
+                      statusFilter === "rented"
+                        ? "bg-card text-foreground shadow-sm font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {colContent.filter_rented || "Alugadas"}
+                  </button>
+                </div>
 
-              {/* Sort By Dropdown */}
-              <div className="flex items-center gap-2 shrink-0">
-                <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground hidden sm:inline-block" />
-                <select
-                  value={sortBy}
-                  onChange={(e: any) => setSortBy(e.target.value)}
-                  className="h-11 px-3 bg-background/80 border border-border/80 rounded-xl text-xs sm:text-sm font-montserrat text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
-                  aria-label="Ordenar produtos"
-                >
-                  <option value="recent">{colContent.sort_recent || "Mais Recentes"}</option>
-                  <option value="price_asc">{colContent.sort_price_asc || "Menor Preço"}</option>
-                  <option value="price_desc">{colContent.sort_price_desc || "Maior Preço"}</option>
-                  <option value="name_asc">{colContent.sort_name_asc || "Nome (A - Z)"}</option>
-                </select>
+                {/* Sort By Dropdown */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground hidden sm:inline-block" />
+                  <select
+                    value={sortBy}
+                    onChange={(e: any) => setSortBy(e.target.value)}
+                    className="h-10 px-3 bg-background/80 border border-border/80 rounded-xl text-xs sm:text-sm font-montserrat text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
+                    aria-label="Ordenar produtos"
+                  >
+                    <option value="recent">{colContent.sort_recent || "Mais Recentes"}</option>
+                    <option value="price_asc">{colContent.sort_price_asc || "Menor Preço"}</option>
+                    <option value="price_desc">{colContent.sort_price_desc || "Maior Preço"}</option>
+                    <option value="name_asc">{colContent.sort_name_asc || "Nome (A - Z)"}</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -357,7 +359,7 @@ const CollectionSection = () => {
           </div>
 
           {/* Products Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto animate-fade-in">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 max-w-6xl mx-auto animate-fade-in">
             {displayedProducts.length > 0 ? (
               displayedProducts.map((product) => {
                 const isAvailable = product.status === "available";

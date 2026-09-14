@@ -37,22 +37,59 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true); // Começa como true
 
-  // Lógica para inicializar a autenticação ao carregar
+  // Lógica para inicializar e validar a autenticação ao carregar
   useEffect(() => {
-    const token = localStorage.getItem("authToken");
-    const userDataString = localStorage.getItem("authUser");
-    if (token && userDataString) {
+    let isMounted = true;
+
+    const initializeAuth = async () => {
+      const token = localStorage.getItem("authToken");
+      const userDataString = localStorage.getItem("authUser");
+
+      if (!token || !userDataString) {
+        if (isMounted) {
+          setIsAuthenticated(false);
+          setUser(null);
+          setIsLoading(false);
+        }
+        return;
+      }
+
       try {
         const userData = JSON.parse(userDataString) as AuthUser;
-        setIsAuthenticated(true);
-        setUser(userData);
-      } catch (error) {
-        console.error("Erro ao fazer parse do usuário do localStorage:", error);
-        localStorage.removeItem("authToken");
-        localStorage.removeItem("authUser");
+        // Valida silenciosamente a sessão ativa com o servidor
+        const response = await api.get<{ authenticated: boolean; user?: any }>("/auth/me");
+        
+        if (isMounted) {
+          if (response.data && response.data.authenticated) {
+            setIsAuthenticated(true);
+            setUser(response.data.user || userData);
+          } else {
+            // Sessão expirada ou token inválido
+            localStorage.removeItem("authToken");
+            localStorage.removeItem("authUser");
+            setIsAuthenticated(false);
+            setUser(null);
+          }
+        }
+      } catch {
+        if (isMounted) {
+          localStorage.removeItem("authToken");
+          localStorage.removeItem("authUser");
+          setIsAuthenticated(false);
+          setUser(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
-    }
-    setIsLoading(false); // Termina o carregamento
+    };
+
+    initializeAuth();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const login = (token: string, userData: AuthUser) => {

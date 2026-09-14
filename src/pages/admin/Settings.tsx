@@ -95,18 +95,23 @@ const Settings: React.FC = () => {
         });
       }
 
-      // 2. Fetch 2FA status (only on environments that support it)
-      if (!isRemoteProductionHost()) {
+      // 2. Fetch 2FA status (only on environments that support it and when authenticated)
+      const token = localStorage.getItem("authToken");
+      if (!isRemoteProductionHost() && token) {
         try {
           const twoFaRes = await api.get<TwoFactorStatus>("/admin/2fa/status");
           if (twoFaRes.data) {
             setTwoFactor(twoFaRes.data);
           }
-        } catch (err) {
-          console.warn("Could not fetch 2FA status:", err);
+        } catch {
+          // Falha silenciosa para não travar o carregamento dos dados da loja
         }
       }
     } catch (error: any) {
+      if (error.response?.status === 401) {
+        // Redirecionamento já gerenciado pelo interceptor de autenticação
+        return;
+      }
       console.error("Error fetching settings:", error);
       toast.error(
         `Erro ao carregar configurações: ${error.response?.data?.message || error.message}`

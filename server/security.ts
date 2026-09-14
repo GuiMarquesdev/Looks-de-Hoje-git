@@ -67,16 +67,31 @@ export function verifyTemp2FAToken(token: string): { id: string; username: strin
   }
 }
 
+export function verifyAuthToken(token: string): AuthTokenPayload | null {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET, {
+      issuer: "looksdehoje-api",
+      audience: "looksdehoje-admin",
+    }) as AuthTokenPayload;
+    return decoded;
+  } catch {
+    return null;
+  }
+}
+
 // ================= 5. COOKIE & TOKEN EXTRACTOR =================
 export function extractToken(req: Request): string | null {
-  // 1. Check HttpOnly Cookie first
-  if (req.cookies && req.cookies.auth_token) {
-    return req.cookies.auth_token;
-  }
-  // 2. Check Authorization Header (Bearer token)
+  // 1. Check Authorization Header (Bearer token) FIRST (prioritize active client state)
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith("Bearer ")) {
-    return authHeader.substring(7).trim();
+    const candidate = authHeader.substring(7).trim();
+    if (candidate && candidate !== "null" && candidate !== "undefined") {
+      return candidate;
+    }
+  }
+  // 2. Check HttpOnly Cookie as fallback
+  if (req.cookies && req.cookies.auth_token) {
+    return req.cookies.auth_token;
   }
   return null;
 }

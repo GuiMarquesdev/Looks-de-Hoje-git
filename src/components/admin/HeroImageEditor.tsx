@@ -85,25 +85,34 @@ export const HeroImageEditor: React.FC<HeroImageEditorProps> = ({
   // Build CSS filter string
   const cssFilter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
 
-  // Interactive drag-to-reposition handler
-  const handleMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
+  // Interactive drag-to-reposition handler (mouse + touch)
+  const handleStart = (clientX: number, clientY: number) => {
     setIsDragging(true);
     setDragStart({
-      x: e.clientX,
-      y: e.clientY,
+      x: clientX,
+      y: clientY,
       posX,
       posY,
     });
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    handleStart(e.clientX, e.clientY);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      handleStart(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  };
+
+  const handleMove = (clientX: number, clientY: number) => {
     if (!isDragging || !dragStart || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const deltaX = ((e.clientX - dragStart.x) / rect.width) * 100;
-    const deltaY = ((e.clientY - dragStart.y) / rect.height) * 100;
+    const deltaX = ((clientX - dragStart.x) / rect.width) * 100;
+    const deltaY = ((clientY - dragStart.y) / rect.height) * 100;
 
-    // Moving mouse left means image moves left or anchor shifts
     const newX = Math.round(Math.max(0, Math.min(100, dragStart.posX - deltaX)));
     const newY = Math.round(Math.max(0, Math.min(100, dragStart.posY - deltaY)));
 
@@ -114,7 +123,17 @@ export const HeroImageEditor: React.FC<HeroImageEditorProps> = ({
     });
   };
 
-  const handleMouseUp = () => {
+  const handleMouseMove = (e: React.MouseEvent) => {
+    handleMove(e.clientX, e.clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      handleMove(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  };
+
+  const handleEnd = () => {
     setIsDragging(false);
     setDragStart(null);
   };
@@ -160,30 +179,30 @@ export const HeroImageEditor: React.FC<HeroImageEditorProps> = ({
         </div>
 
         {onTogglePreviewMode && (
-          <div className="flex items-center gap-1 bg-black/40 p-1 rounded-lg border border-white/10">
+          <div className="flex items-center gap-1 bg-black/40 p-1 rounded-lg border border-white/10 shrink-0">
             <button
               type="button"
               onClick={() => onTogglePreviewMode("desktop")}
-              className={`px-2.5 py-1 text-xs rounded font-medium flex items-center gap-1.5 transition-colors ${
+              className={`px-2.5 py-1 text-xs rounded font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
                 previewMode === "desktop"
-                  ? "bg-amber-400 text-black shadow-sm"
+                  ? "bg-amber-400 text-black shadow-sm font-semibold"
                   : "text-zinc-400 hover:text-white"
               }`}
             >
               <Monitor className="w-3.5 h-3.5" />
-              Desktop (16:9)
+              <span>Desktop</span>
             </button>
             <button
               type="button"
               onClick={() => onTogglePreviewMode("mobile")}
-              className={`px-2.5 py-1 text-xs rounded font-medium flex items-center gap-1.5 transition-colors ${
+              className={`px-2.5 py-1 text-xs rounded font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
                 previewMode === "mobile"
-                  ? "bg-amber-400 text-black shadow-sm"
+                  ? "bg-amber-400 text-black shadow-sm font-semibold"
                   : "text-zinc-400 hover:text-white"
               }`}
             >
               <Smartphone className="w-3.5 h-3.5" />
-              Mobile (9:16)
+              <span>Mobile</span>
             </button>
           </div>
         )}
@@ -195,10 +214,14 @@ export const HeroImageEditor: React.FC<HeroImageEditorProps> = ({
           ref={containerRef}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          className={`relative rounded-xl overflow-hidden shadow-2xl border-2 border-amber-400/30 transition-all select-none group cursor-grab active:cursor-grabbing ${
-            previewMode === "mobile" ? "w-[300px] h-[480px]" : "w-full h-[280px] sm:h-[340px]"
+          onMouseUp={handleEnd}
+          onMouseLeave={handleEnd}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleEnd}
+          onTouchCancel={handleEnd}
+          className={`relative rounded-xl overflow-hidden shadow-2xl border-2 border-amber-400/30 transition-all select-none group cursor-grab active:cursor-grabbing touch-none ${
+            previewMode === "mobile" ? "w-[300px] max-w-full h-[460px]" : "w-full h-[260px] sm:h-[340px]"
           }`}
         >
           {/* Background image with real-time framing and filters */}
@@ -260,43 +283,43 @@ export const HeroImageEditor: React.FC<HeroImageEditorProps> = ({
       </div>
 
       {/* Tabs for Editing Tools */}
-      <div className="bg-card rounded-xl border border-border p-4 shadow-sm space-y-4">
-        <div className="flex border-b border-border pb-2 gap-2">
+      <div className="bg-card rounded-xl border border-border p-3 sm:p-4 shadow-sm space-y-4">
+        <div className="flex items-center border-b border-border pb-2 gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => setActiveTab("position")}
-            className={`px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg flex items-center gap-2 transition-all ${
+            className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg flex items-center gap-1.5 sm:gap-2 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
               activeTab === "position"
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
             }`}
           >
-            <Sliders className="w-4 h-4" />
-            Enquadramento & Zoom
+            <Sliders className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span>Enquadramento & Zoom</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("filters")}
-            className={`px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg flex items-center gap-2 transition-all ${
+            className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg flex items-center gap-1.5 sm:gap-2 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
               activeTab === "filters"
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
             }`}
           >
-            <Palette className="w-4 h-4" />
-            Cores & Contraste
+            <Palette className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span>Cores & Contraste</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("presets")}
-            className={`px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg flex items-center gap-2 transition-all ${
+            className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg flex items-center gap-1.5 sm:gap-2 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
               activeTab === "presets"
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
             }`}
           >
-            <Wand2 className="w-4 h-4" />
-            Filtros Elegantes
+            <Wand2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span>Filtros Elegantes</span>
           </button>
         </div>
 
@@ -308,15 +331,15 @@ export const HeroImageEditor: React.FC<HeroImageEditorProps> = ({
               <Label className="text-xs font-medium text-muted-foreground mb-2 block">
                 Alinhamento Rápido da Foto
               </Label>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => quickAlign("top")}
-                  className="text-xs h-8 border-border/80 hover:border-primary/60 hover:bg-primary/10"
+                  className="flex-1 min-w-[70px] sm:min-w-0 text-xs h-8 px-2 border-border/80 hover:border-primary/60 hover:bg-primary/10 cursor-pointer"
                 >
-                  <MoveVertical className="w-3 h-3 mr-1" />
+                  <MoveVertical className="w-3 h-3 mr-1 shrink-0" />
                   Topo
                 </Button>
                 <Button
@@ -324,7 +347,7 @@ export const HeroImageEditor: React.FC<HeroImageEditorProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={() => quickAlign("center")}
-                  className="text-xs h-8 border-border/80 hover:border-primary/60 hover:bg-primary/10"
+                  className="flex-1 min-w-[70px] sm:min-w-0 text-xs h-8 px-2 border-border/80 hover:border-primary/60 hover:bg-primary/10 cursor-pointer"
                 >
                   Centro
                 </Button>
@@ -333,7 +356,7 @@ export const HeroImageEditor: React.FC<HeroImageEditorProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={() => quickAlign("bottom")}
-                  className="text-xs h-8 border-border/80 hover:border-primary/60 hover:bg-primary/10"
+                  className="flex-1 min-w-[70px] sm:min-w-0 text-xs h-8 px-2 border-border/80 hover:border-primary/60 hover:bg-primary/10 cursor-pointer"
                 >
                   Base
                 </Button>
@@ -342,8 +365,9 @@ export const HeroImageEditor: React.FC<HeroImageEditorProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={() => quickAlign("left")}
-                  className="text-xs h-8 border-border/80 hover:border-primary/60 hover:bg-primary/10"
+                  className="flex-1 min-w-[70px] sm:min-w-0 text-xs h-8 px-2 border-border/80 hover:border-primary/60 hover:bg-primary/10 cursor-pointer"
                 >
+                  <MoveHorizontal className="w-3 h-3 mr-1 shrink-0" />
                   Esquerda
                 </Button>
                 <Button
@@ -351,15 +375,16 @@ export const HeroImageEditor: React.FC<HeroImageEditorProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={() => quickAlign("right")}
-                  className="text-xs h-8 border-border/80 hover:border-primary/60 hover:bg-primary/10"
+                  className="flex-1 min-w-[70px] sm:min-w-0 text-xs h-8 px-2 border-border/80 hover:border-primary/60 hover:bg-primary/10 cursor-pointer"
                 >
+                  <MoveHorizontal className="w-3 h-3 mr-1 shrink-0" />
                   Direita
                 </Button>
               </div>
             </div>
 
             {/* Sliders Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 pt-2">
               {/* Zoom Slider */}
               <div className="p-3 bg-muted/40 rounded-lg border border-border/60">
                 <div className="flex items-center justify-between mb-2">
@@ -441,7 +466,7 @@ export const HeroImageEditor: React.FC<HeroImageEditorProps> = ({
         {/* Tab 2: Color and Contrast adjustments */}
         {activeTab === "filters" && (
           <div className="space-y-4 animate-fade-in">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {/* Brightness */}
               <div className="p-3 bg-muted/40 rounded-lg border border-border/60">
                 <div className="flex items-center justify-between mb-2">
@@ -505,14 +530,14 @@ export const HeroImageEditor: React.FC<HeroImageEditorProps> = ({
 
             {/* Darkness / Vignette Overlay Slider */}
             <div className="p-3 bg-muted/40 rounded-lg border border-border/60">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-2 gap-2">
                 <div>
                   <span className="text-xs font-semibold block">Escurecimento de Fundo (Legibilidade do Texto)</span>
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-[11px] text-muted-foreground block">
                     Aumente caso a foto seja muito clara para garantir que os títulos fiquem fáceis de ler
                   </span>
                 </div>
-                <span className="text-xs font-mono bg-background px-2 py-0.5 rounded border">
+                <span className="text-xs font-mono bg-background px-2 py-0.5 rounded border shrink-0">
                   {overlayOpacity}%
                 </span>
               </div>
@@ -533,7 +558,7 @@ export const HeroImageEditor: React.FC<HeroImageEditorProps> = ({
             <Label className="text-xs font-medium text-muted-foreground block">
               Escolha um visual pré-calibrado para alta costura:
             </Label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {PRESETS.map((p) => {
                 const isSelected = activePreset === p.id;
                 return (
@@ -541,7 +566,7 @@ export const HeroImageEditor: React.FC<HeroImageEditorProps> = ({
                     key={p.id}
                     type="button"
                     onClick={() => applyPreset(p)}
-                    className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all ${
+                    className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
                       isSelected
                         ? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary"
                         : "border-border/80 hover:border-primary/50 hover:bg-muted/60"
@@ -565,13 +590,13 @@ export const HeroImageEditor: React.FC<HeroImageEditorProps> = ({
         )}
 
         {/* Footer actions */}
-        <div className="pt-2 flex items-center justify-between border-t border-border/60">
+        <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-t border-border/60">
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={onReset}
-            className="text-xs text-muted-foreground hover:text-foreground gap-1.5"
+            className="text-xs text-muted-foreground hover:text-foreground gap-1.5 w-full sm:w-auto justify-start sm:justify-center cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             Resetar Todos os Ajustes
