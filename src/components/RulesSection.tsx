@@ -69,7 +69,20 @@ const RulesSection = () => {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed.rules) && parsed.rules.length > 0) {
-          return parsed.rules
+          const list = parsed.rules.map((r: RuleItem) => {
+            if (
+              (r.id === "2" || r.title === "Entrega e Retirada") &&
+              r.description.includes("toda a região metropolitana")
+            ) {
+              return {
+                ...r,
+                description:
+                  "Entregamos com motoboy parceiro, via app de entregas ou retirada na loja física.",
+              };
+            }
+            return r;
+          });
+          return list
             .filter((r: RuleItem) => r.is_active !== false)
             .sort((a: RuleItem, b: RuleItem) => (a.order || 0) - (b.order || 0));
         }

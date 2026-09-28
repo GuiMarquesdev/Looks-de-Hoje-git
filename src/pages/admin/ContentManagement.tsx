@@ -810,7 +810,7 @@ const ContentManagement: React.FC = () => {
                 <Input
                   value={formData.footer.copyright_text}
                   onChange={(e) => handleFooterChange("copyright_text", e.target.value)}
-                  placeholder="© 2025 LooksdeHoje. Todos os direitos reservados."
+                  placeholder="© 2025 Look de Hoje. Todos os direitos reservados."
                   className="font-montserrat text-sm"
                 />
               </div>

@@ -16,6 +16,28 @@ export const isRemoteProductionHost = (): boolean => {
   return API_URL.includes("lookdehoje");
 };
 
+export const isDevelopment = (): boolean => {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname || "";
+    if (
+      hostname.includes("ais-pre-") ||
+      hostname.includes("lookdehoje") ||
+      hostname.includes("vercel.app") ||
+      (hostname.includes(".run.app") && !hostname.includes("ais-dev-"))
+    ) {
+      return false;
+    }
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname.includes("ais-dev-")
+    ) {
+      return true;
+    }
+  }
+  return import.meta.env.DEV;
+};
+
 const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,

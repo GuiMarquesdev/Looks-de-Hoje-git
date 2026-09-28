@@ -186,7 +186,22 @@ const RulesManagement = () => {
         try {
           const parsed = JSON.parse(cached);
           if (parsed.settings) setSettings({ ...defaultRulesSettings, ...parsed.settings });
-          if (Array.isArray(parsed.rules)) setRules(parsed.rules);
+          if (Array.isArray(parsed.rules)) {
+            const list = parsed.rules.map((r: RuleCardItem) => {
+              if (
+                (r.id === "2" || r.title === "Entrega e Retirada") &&
+                r.description?.includes("toda a região metropolitana")
+              ) {
+                return {
+                  ...r,
+                  description:
+                    "Entregamos com motoboy parceiro, via app de entregas ou retirada na loja física.",
+                };
+              }
+              return r;
+            });
+            setRules(list);
+          }
         } catch {
           // ignore
         }

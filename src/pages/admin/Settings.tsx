@@ -21,6 +21,7 @@ import {
   Phone,
   MapPin,
   Clock,
+  Palette,
 } from "lucide-react";
 import api, { API_URL, isRemoteProductionHost } from "@/config/api";
 import { useStoreSettings } from "@/contexts/StoreSettingsContext";
@@ -48,7 +49,16 @@ const Settings: React.FC = () => {
   const [savingStore, setSavingStore] = useState(false);
 
   // Store Form
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    store_name: string;
+    instagram_url: string;
+    whatsapp_url: string;
+    email: string;
+    phone: string;
+    address: string;
+    working_hours: string;
+    channels_theme: "gold" | "black" | "black-gold";
+  }>({
     store_name: "",
     instagram_url: "",
     whatsapp_url: "",
@@ -56,6 +66,7 @@ const Settings: React.FC = () => {
     phone: "",
     address: "",
     working_hours: "",
+    channels_theme: "gold",
   });
 
   // Password Change State
@@ -92,6 +103,7 @@ const Settings: React.FC = () => {
           phone: storeRes.data.phone || "",
           address: storeRes.data.address || "",
           working_hours: storeRes.data.working_hours || "",
+          channels_theme: (storeRes.data.channels_theme as any) || "gold",
         });
       }
 
@@ -136,6 +148,7 @@ const Settings: React.FC = () => {
         phone: formData.phone,
         address: formData.address,
         working_hours: formData.working_hours,
+        channels_theme: formData.channels_theme,
       };
 
       await api.put("/admin/settings", updatePayload);
@@ -541,7 +554,7 @@ const Settings: React.FC = () => {
                 id="store_name"
                 value={formData.store_name}
                 onChange={(e) => handleInputChange("store_name", e.target.value)}
-                placeholder="Looks de Hoje"
+                placeholder="Look de Hoje"
                 className="font-montserrat text-xs"
               />
             </div>
@@ -555,7 +568,7 @@ const Settings: React.FC = () => {
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange("email", e.target.value)}
-                placeholder="contato@looksdehoje.com.br"
+                placeholder="lookdehojebrecho@gmail.com"
                 className="font-montserrat text-xs"
               />
             </div>
@@ -632,9 +645,124 @@ const Settings: React.FC = () => {
               id="address"
               value={formData.address}
               onChange={(e) => handleInputChange("address", e.target.value)}
-              placeholder="Av. Antônio Carlos Magalhães, 2501 - Brotas, Salvador - BA, 40280-901"
+              placeholder="Av. Antônio Carlos Magalhães, 2501 - Itaigara, Salvador - BA, 40280-901"
               className="font-montserrat text-xs"
             />
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3 pt-1">
+            <div>
+              <Label className="text-xs font-montserrat font-semibold flex items-center gap-1.5">
+                <Palette className="w-3.5 h-3.5 text-primary" />
+                Padrão de Cor dos Botões de WhatsApp & Instagram
+              </Label>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Escolha o padrão visual das barras de atendimento (WhatsApp e Instagram) no site e na janela dos vestidos.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Opção Dourado */}
+              <button
+                type="button"
+                onClick={() => handleInputChange("channels_theme", "gold")}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-3 ${
+                  formData.channels_theme === "gold"
+                    ? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary"
+                    : "border-border/60 hover:border-border hover:bg-secondary/40"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-montserrat text-xs font-semibold text-foreground">
+                      Padrão Dourado
+                    </span>
+                    {formData.channels_theme === "gold" && (
+                      <span className="text-[10px] font-bold text-primary">Ativo</span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Gradiente ouro luxuoso em ambos os botões.
+                  </p>
+                </div>
+                <div className="flex gap-1.5">
+                  <div className="px-2.5 py-1 rounded-full bg-gradient-gold text-[10px] font-semibold text-primary-foreground shadow-xs">
+                    WhatsApp
+                  </div>
+                  <div className="px-2.5 py-1 rounded-full bg-gradient-gold text-[10px] font-semibold text-primary-foreground shadow-xs">
+                    Instagram
+                  </div>
+                </div>
+              </button>
+
+              {/* Opção Preto Nobre */}
+              <button
+                type="button"
+                onClick={() => handleInputChange("channels_theme", "black")}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-3 ${
+                  formData.channels_theme === "black"
+                    ? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary"
+                    : "border-border/60 hover:border-border hover:bg-secondary/40"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-montserrat text-xs font-semibold text-foreground">
+                      Padrão Preto Nobre
+                    </span>
+                    {formData.channels_theme === "black" && (
+                      <span className="text-[10px] font-bold text-primary">Ativo</span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Preto nobre com detalhes e bordas douradas.
+                  </p>
+                </div>
+                <div className="flex gap-1.5">
+                  <div className="px-2.5 py-1 rounded-full bg-zinc-950 text-amber-300 border border-amber-500/40 text-[10px] font-semibold shadow-xs">
+                    WhatsApp
+                  </div>
+                  <div className="px-2.5 py-1 rounded-full bg-zinc-950 text-amber-300 border border-amber-500/40 text-[10px] font-semibold shadow-xs">
+                    Instagram
+                  </div>
+                </div>
+              </button>
+
+              {/* Opção Dourado & Preto */}
+              <button
+                type="button"
+                onClick={() => handleInputChange("channels_theme", "black-gold")}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-3 ${
+                  formData.channels_theme === "black-gold"
+                    ? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary"
+                    : "border-border/60 hover:border-border hover:bg-secondary/40"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-montserrat text-xs font-semibold text-foreground">
+                      Dourado & Preto
+                    </span>
+                    {formData.channels_theme === "black-gold" && (
+                      <span className="text-[10px] font-bold text-primary">Ativo</span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    WhatsApp em ouro e Instagram em preto nobre.
+                  </p>
+                </div>
+                <div className="flex gap-1.5">
+                  <div className="px-2.5 py-1 rounded-full bg-gradient-gold text-[10px] font-semibold text-primary-foreground shadow-xs">
+                    WhatsApp
+                  </div>
+                  <div className="px-2.5 py-1 rounded-full bg-zinc-950 text-amber-300 border border-amber-500/40 text-[10px] font-semibold shadow-xs">
+                    Instagram
+                  </div>
+                </div>
+              </button>
+            </div>
           </div>
 
           <div className="flex justify-end pt-2">

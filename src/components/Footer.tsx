@@ -1,5 +1,6 @@
-import { Instagram, Heart } from "lucide-react";
-import whatsappIcon from "@/assets/whatsapp-icon.svg";
+import { Instagram, Heart, Lock } from "lucide-react";
+import { Link } from "react-router-dom";
+import { WhatsAppIcon } from "@/components/ContactChannels";
 import { useStoreSettings } from "@/contexts/StoreSettingsContext";
 import { useSiteContent } from "@/contexts/SiteContentContext";
 
@@ -19,15 +20,15 @@ const Footer = () => {
   const socialLinks = [
     {
       name: "WhatsApp",
-      icon: <img src={whatsappIcon} alt="WhatsApp" className="w-5 h-5" />,
+      icon: <WhatsAppIcon className="w-5 h-5" />,
       href: getWhatsAppUrl(),
-      color: "hover:text-green-500",
+      color: "hover:bg-primary hover:text-primary-foreground",
     },
     {
       name: "Instagram",
       icon: <Instagram className="w-5 h-5" />,
       href: getInstagramUrl(),
-      color: "hover:text-pink-500",
+      color: "hover:bg-primary hover:text-primary-foreground",
     },
   ];
 
@@ -43,7 +44,7 @@ const Footer = () => {
           {/* Brand Section */}
           <div className="text-center md:text-left">
             <h3 className="font-playfair text-3xl font-bold mb-4 text-primary">
-              {settings.store_name || "LooksdeHoje"}
+              {settings.store_name || "Look de Hoje"}
             </h3>
             <p className="font-montserrat text-background/80 leading-relaxed mb-6">
               {footerContent.brand_tagline ||
@@ -58,7 +59,7 @@ const Footer = () => {
                   href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`p-3 rounded-full bg-background/10 backdrop-blur-sm text-background hover:bg-primary ${social.color} transition-all duration-300 hover:-translate-y-1 hover:shadow-gold`}
+                  className={`p-3 rounded-full bg-background/10 backdrop-blur-sm text-primary hover:bg-primary hover:text-primary-foreground border border-primary/25 hover:border-primary transition-all duration-300 hover:-translate-y-1 hover:shadow-gold`}
                   aria-label={social.name}
                 >
                   {social.icon}
@@ -83,6 +84,15 @@ const Footer = () => {
                   </button>
                 </li>
               ))}
+              <li>
+                <Link
+                  to="/admin"
+                  className="font-montserrat text-background/70 hover:text-primary transition-colors duration-300 hover:translate-x-1 transform inline-flex items-center gap-1.5"
+                >
+                  <Lock className="w-3.5 h-3.5 text-primary/80" />
+                  <span>Painel Administrativo</span>
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -111,10 +121,10 @@ const Footer = () => {
                   E-mail:
                 </h5>
                 <a
-                  href={`mailto:${settings.email || "contato@looksdehoje.com.br"}`}
+                  href={`mailto:${settings.email || "lookdehojebrecho@gmail.com"}`}
                   className="font-montserrat text-background/80 hover:text-primary transition-colors"
                 >
-                  {settings.email || "contato@looksdehoje.com.br"}
+                  {settings.email || "lookdehojebrecho@gmail.com"}
                 </a>
               </div>
 
@@ -123,7 +133,7 @@ const Footer = () => {
                   Endereço:
                 </h5>
                 <address className="font-montserrat text-background/80 not-italic">
-                  {settings.address || "Av. Antônio Carlos Magalhães, 2501 - Brotas, Salvador - BA, 40280-901"}
+                  {settings.address || "Av. Antônio Carlos Magalhães, 2501 - Itaigara, Salvador - BA, 40280-901"}
                 </address>
               </div>
             </div>
@@ -133,11 +143,19 @@ const Footer = () => {
         {/* Bottom Section */}
         <div className="border-t border-background/20 mt-12 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            {/* Copyright */}
-            <div className="flex items-center space-x-2 text-background/60 font-montserrat text-sm">
+            {/* Copyright & Admin Shortcut */}
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 text-background/60 font-montserrat text-sm">
               <span>
-                {footerContent.copyright_text || "© 2025 LooksdeHoje. Todos os direitos reservados."}
+                {footerContent.copyright_text || "© 2025 Look de Hoje. Todos os direitos reservados."}
               </span>
+              <span className="hidden sm:inline text-background/30">•</span>
+              <Link
+                to="/admin"
+                className="inline-flex items-center gap-1.5 text-xs text-background/60 hover:text-primary transition-colors py-1 px-2.5 rounded-full border border-background/20 hover:border-primary/40"
+              >
+                <Lock className="w-3 h-3 text-primary/70" />
+                <span>Área Restrita (Admin)</span>
+              </Link>
             </div>
 
             {/* Made with Love */}

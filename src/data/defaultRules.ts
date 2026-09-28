@@ -44,7 +44,7 @@ export const defaultRules: RuleItem[] = [
     id: "2",
     icon: "Truck",
     title: "Entrega e Retirada",
-    description: "Entregamos em toda a região metropolitana ou você pode retirar em nossa loja física.",
+    description: "Entregamos com motoboy parceiro, via app de entregas ou retirada na loja física.",
     details: [
       "Entrega por motoboy parceiro com valor calculado conforme a região",
       "Retirada e devolução mediante agendamento",

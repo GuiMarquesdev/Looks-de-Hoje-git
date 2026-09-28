@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useAuth, AuthUser } from "../contexts/AuthContext";
-import { useNavigate, Navigate } from "react-router-dom";
+import { useNavigate, Navigate, Link } from "react-router-dom";
 import api from "../config/api";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
@@ -204,7 +204,7 @@ const AdminLogin: React.FC = () => {
               <Button type="submit" className="w-full mt-2" disabled={isLoading}>
                 {isLoading ? "Validando credenciais..." : "Entrar com Segurança"}
               </Button>
-              <div className="pt-2 text-center">
+              <div className="pt-2 flex flex-col items-center gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -215,6 +215,12 @@ const AdminLogin: React.FC = () => {
                 >
                   Preencher dados de acesso padrão (admin / admin123)
                 </button>
+                <Link
+                  to="/"
+                  className="text-xs text-muted-foreground/80 hover:text-foreground transition-colors pt-1"
+                >
+                  ← Voltar para a loja Look de Hoje
+                </Link>
               </div>
             </form>
           ) : (

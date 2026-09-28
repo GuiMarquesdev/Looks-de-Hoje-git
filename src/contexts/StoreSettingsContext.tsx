@@ -10,6 +10,7 @@ export interface StoreSettings {
   phone?: string;
   address?: string;
   working_hours?: string;
+  channels_theme?: "gold" | "black" | "black-gold";
 }
 
 interface StoreSettingsContextType {
@@ -23,13 +24,14 @@ interface StoreSettingsContextType {
 }
 
 const defaultSettings: StoreSettings = {
-  store_name: "Looks de Hoje",
+  store_name: "Look de Hoje",
   instagram_url: "https://www.instagram.com/looksdehojebrecho/",
   whatsapp_url: "https://wa.me/5571992771527",
-  email: "contato@looksdehoje.com.br",
+  email: "lookdehojebrecho@gmail.com",
   phone: "(71) 99277-1527",
-  address: "Av. Antônio Carlos Magalhães, 2501 - Brotas, Salvador - BA, 40280-901",
+  address: "Av. Antônio Carlos Magalhães, 2501 - Itaigara, Salvador - BA, 40280-901",
   working_hours: "Segunda, Quarta e Sexta: 12:00 - 18:00 (Somente com agendamento)",
+  channels_theme: "gold",
 };
 
 const StoreSettingsContext = createContext<StoreSettingsContextType>({
@@ -47,7 +49,18 @@ export const StoreSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const cached = localStorage.getItem("looksdehoje_store_settings");
       if (cached) {
-        return { ...defaultSettings, ...JSON.parse(cached) };
+        const parsed = JSON.parse(cached);
+        // Automatically migrate legacy placeholders or typo
+        if (parsed.email === "contato@looksdehoje.com.br" || !parsed.email) {
+          parsed.email = "lookdehojebrecho@gmail.com";
+        }
+        if (parsed.store_name === "Looks de Hoje" || parsed.store_name === "LooksdeHoje" || !parsed.store_name) {
+          parsed.store_name = "Look de Hoje";
+        }
+        if (parsed.address && parsed.address.includes("Brotas")) {
+          parsed.address = parsed.address.replace("Brotas", "Itaigara");
+        }
+        return { ...defaultSettings, ...parsed };
       }
     } catch {
       // ignore

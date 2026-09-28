@@ -38,14 +38,15 @@ const ContactSection = () => {
   // Endereço completo para o link de pesquisa
   const fullAddress =
     settings.address ||
-    "Av. Antônio Carlos Magalhães, 2501 - Brotas, Salvador - BA, 40280-901";
+    "Av. Antônio Carlos Magalhães, 2501 - Itaigara, Salvador - BA, 40280-901";
   const mapsSearchUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
     fullAddress
   )}`;
 
-  // Link de incorporação do Google Maps para o iframe (para o endereço aproximado)
-  const mapsEmbedSrc =
-    "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3888.0016462723046!2d-38.4816913!3d-12.9696316!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x7160352e8508e7b%3A0x6e26715b741f2216!2sAv.%20Ant%C3%B4nio%20Carlos%20Magalh%C3%A3es%2C%202501%20-%20Brotas%2C%20Salvador%20-%20BA%2C%2040280-901%2C%20Brasil!5e0!3m2!1spt-BR!2sus!4v1700683200000!5m2!1spt-BR!2sus";
+  // Link de incorporação do Google Maps para o iframe (sincronizado com o endereço dinâmico)
+  const mapsEmbedSrc = `https://maps.google.com/maps?q=${encodeURIComponent(
+    fullAddress
+  )}&t=&z=16&ie=UTF8&iwloc=&output=embed`;
 
   return (
     <section id="contato" className="py-20 bg-secondary/30">

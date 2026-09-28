@@ -124,6 +124,6 @@ export const defaultSiteContent: SiteContent = {
     brand_tagline: "Aluguel de roupas e vestidos sofisticados para tornar seus momentos inesquecíveis.",
     quick_links_title: "Links Rápidos",
     contact_title: "Contato",
-    copyright_text: "© 2025 LooksdeHoje. Todos os direitos reservados.",
+    copyright_text: "© 2025 Look de Hoje. Todos os direitos reservados.",
   },
 };

@@ -22,12 +22,20 @@ export const SiteContentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const cached = localStorage.getItem("looksdehoje_site_content");
       if (cached) {
         const parsed = JSON.parse(cached);
+        const header = { ...defaultSiteContent.header, ...(parsed.header || {}) };
+        if (header.nav_home === "Início aaaa") {
+          header.nav_home = "Início";
+        }
+        const footer = { ...defaultSiteContent.footer, ...(parsed.footer || {}) };
+        if (footer.copyright_text && footer.copyright_text.includes("LooksdeHoje")) {
+          footer.copyright_text = footer.copyright_text.replace("LooksdeHoje", "Look de Hoje");
+        }
         return {
-          header: { ...defaultSiteContent.header, ...(parsed.header || {}) },
+          header,
           collection: { ...defaultSiteContent.collection, ...(parsed.collection || {}) },
           rules: { ...defaultSiteContent.rules, ...(parsed.rules || {}) },
           contact: { ...defaultSiteContent.contact, ...(parsed.contact || {}) },
-          footer: { ...defaultSiteContent.footer, ...(parsed.footer || {}) },
+          footer,
         };
       }
     } catch {

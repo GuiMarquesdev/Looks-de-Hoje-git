@@ -327,13 +327,14 @@ const defaultHeroSlides = [
 
 const defaultStoreSettings = {
   id: "1",
-  store_name: "Looks de Hoje",
+  store_name: "Look de Hoje",
   instagram_url: "https://www.instagram.com/looksdehojebrecho/",
   whatsapp_url: "https://wa.me/5571992771527",
-  email: "contato@looksdehoje.com.br",
+  email: "lookdehojebrecho@gmail.com",
   phone: "(71) 99277-1527",
-  address: "Av. Antônio Carlos Magalhães, 2501 - Brotas, Salvador - BA, 40280-901",
+  address: "Av. Antônio Carlos Magalhães, 2501 - Itaigara, Salvador - BA, 40280-901",
   working_hours: "Segunda, Quarta e Sexta: 12:00 - 18:00 (Somente com agendamento)",
+  channels_theme: "gold",
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
@@ -393,7 +394,7 @@ const defaultSiteContent = {
     brand_tagline: "Aluguel de roupas e vestidos sofisticados para tornar seus momentos inesquecíveis.",
     quick_links_title: "Links Rápidos",
     contact_title: "Contato",
-    copyright_text: "© 2025 LooksdeHoje. Todos os direitos reservados.",
+    copyright_text: "© 2025 Look de Hoje. Todos os direitos reservados.",
   },
 };
 
@@ -433,7 +434,7 @@ const defaultRules: RuleItem[] = [
     id: "2",
     icon: "Truck",
     title: "Entrega e Retirada",
-    description: "Entregamos em toda a região metropolitana ou você pode retirar em nossa loja física.",
+    description: "Entregamos com motoboy parceiro, via app de entregas ou retirada na loja física.",
     details: [
       "Entrega por motoboy parceiro com valor calculado conforme a região",
       "Retirada e devolução mediante agendamento",

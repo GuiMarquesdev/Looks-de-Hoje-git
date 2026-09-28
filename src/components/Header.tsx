@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { Menu, X } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Menu, X, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logoLight from "@/assets/logo-light.png";
 import logoDark from "@/assets/logo-dark.png";
 import whatsappIcon from "@/assets/whatsapp-icon.svg";
+import { isDevelopment } from "@/config/api";
 import { useStoreSettings } from "@/contexts/StoreSettingsContext";
 import { useSiteContent } from "@/contexts/SiteContentContext";
 
@@ -13,6 +15,7 @@ const Header = () => {
   const { getWhatsAppUrl, settings } = useStoreSettings();
   const { content } = useSiteContent();
   const headerContent = content.header;
+  const isDev = isDevelopment();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -31,7 +34,7 @@ const Header = () => {
 
   const handleWhatsAppClick = () => {
     setIsMenuOpen(false);
-    const message = `Olá! Gostaria de saber mais sobre o aluguel de roupas do ${settings.store_name || "LooksdeHoje"}.`;
+    const message = `Olá! Gostaria de saber mais sobre o aluguel de roupas do ${settings.store_name || "Look de Hoje"}.`;
     const url = getWhatsAppUrl(message);
     window.open(url, "_blank");
   };
@@ -97,8 +100,23 @@ const Header = () => {
             </button>
           </div>
 
-            {/* WhatsApp CTA Button */}
-          <div className="flex items-center space-x-4">
+            {/* WhatsApp CTA Button & Admin Link (Dev only) */}
+          <div className="flex items-center space-x-3">
+            {isDev && (
+              <Link
+                to="/admin"
+                className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-montserrat font-medium rounded-full transition-all duration-300 ${
+                  isScrolled || isMenuOpen
+                    ? "text-foreground/80 hover:text-primary border border-border/80 hover:border-primary/50 bg-secondary/30"
+                    : "text-white/90 hover:text-white border border-white/30 hover:border-white/60 bg-black/20 backdrop-blur-sm"
+                }`}
+                title="Acessar Painel Administrativo (Apenas em Desenvolvimento)"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>Admin</span>
+              </Link>
+            )}
+
             <Button
               onClick={handleWhatsAppClick}
               className="hidden md:flex items-center space-x-2 bg-gradient-gold hover:bg-primary-dark text-primary-foreground font-montserrat font-semibold px-6 py-2 rounded-full shadow-gold transition-all duration-300 hover:-translate-y-0.5"
@@ -162,6 +180,16 @@ const Header = () => {
               >
                 {headerContent.nav_contact || "Contato"}
               </button>
+              {isDev && (
+                <Link
+                  to="/admin"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center gap-2.5 w-full text-left font-montserrat text-sm font-semibold text-foreground hover:text-primary hover:bg-secondary/80 transition-colors px-3.5 py-3 rounded-xl cursor-pointer border border-dashed border-primary/30 bg-primary/5"
+                >
+                  <Lock className="w-4 h-4 text-primary" />
+                  <span>Painel Administrativo</span>
+                </Link>
+              )}
               <Button
                 id="header-mobile-cta-whatsapp"
                 onClick={handleWhatsAppClick}

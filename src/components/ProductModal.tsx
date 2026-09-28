@@ -102,7 +102,7 @@ const ProductModal: React.FC<ModalComponentProps> = ({
 
   const getContactMessage = () => {
     if (isAvailable) {
-      return `Olá! Gostaria de alugar o ${product.name} do LooksdeHoje. Poderia me dar mais informações?`;
+      return `Olá! Gostaria de alugar o ${product.name} do Look de Hoje. Poderia me dar mais informações?`;
     } else {
       return `Olá, gostaria de ser avisado(a) quando a peça ${product.name} estiver disponível novamente.`;
     }

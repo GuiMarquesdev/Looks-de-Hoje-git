@@ -173,7 +173,7 @@ const CollectionSection = () => {
   };
 
   const whatsappRent = (productName: string) => {
-    const message = `Olá! Gostaria de alugar o look "${productName}" no ${settings.store_name || "Looks de Hoje"}. Poderia me dar mais informações?`;
+    const message = `Olá! Gostaria de alugar o look "${productName}" no ${settings.store_name || "Look de Hoje"}. Poderia me dar mais informações?`;
     window.open(getWhatsAppUrl(message), "_blank");
   };
 
